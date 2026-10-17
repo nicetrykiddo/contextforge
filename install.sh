@@ -3,7 +3,13 @@ set -euo pipefail
 
 # One command from GitHub or a local checkout; never modify a target unless --project is given.
 repo='https://github.com/nicetrykiddo/contextforge.git'
-here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# When piped through curl | bash -s, BASH_SOURCE[0] is empty.
+# Do not treat the target project as the installer's own checkout.
+source_path="${BASH_SOURCE[0]:-}"
+here=''
+if [[ -n "$source_path" && -f "$source_path" ]]; then
+  here="$(cd "$(dirname "$source_path")" && pwd)"
+fi
 tempdir=''
 project=''
 mode='general'
@@ -18,7 +24,7 @@ while (($#)); do
   esac
 done
 case "$mode" in ctf|bugbounty|investigation|software|general) ;; *) echo "Invalid mode: $mode" >&2; exit 2 ;; esac
-if ! test -f "$here/ctx.py"; then
+if [[ -z "$here" || ! -f "$here/ctx.py" || ! -f "$here/.agents/skills/contextforge/SKILL.md" ]]; then
   command -v git >/dev/null || { echo 'git required for remote bootstrap' >&2; exit 1; }
   tempdir="$(mktemp -d)"
   trap 'rm -rf "$tempdir"' EXIT
@@ -46,3 +52,4 @@ if [[ -n "$project" ]]; then
   printf 'Project: %s\nNext: fill .ctx/MISSION.md and .ctx/SCOPE.md using original sources before testing.\n' "$project"
 fi
 printf 'Restart Codex to discover the skill. Review hooks.json changes before enabling hooks.\n'
+
