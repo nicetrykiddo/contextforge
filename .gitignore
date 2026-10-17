@@ -1,0 +1,7 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ctx/
+*.log
+*.zip
+.DS_Store

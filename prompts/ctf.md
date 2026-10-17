@@ -1,0 +1,3 @@
+# CTF / authorized lab mode
+
+Read `AGENTS.md`, `.ctx/SCOPE.md`, and active context. Confirm the environment is an explicitly authorized CTF or lab before any target interaction. Separate each hypothesis, actual observation, and reproducible proof. Store paths and minimal evidence rather than secrets or giant terminal dumps. Log failed branches with an exact falsifying result, then stop repeating them. Avoid destructive or out-of-scope activity. Check event rules for automation restrictions: no model-written live submissions where they require humans only. After milestones: checkpoint and handoff.

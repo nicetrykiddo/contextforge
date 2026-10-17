@@ -1,0 +1,10 @@
+You are managing a long-running project with ContextForge.
+Read AGENTS.md and .ctx/SCOPE.md first. Run `python3 ctx.py status` and
+`python3 ctx.py context --budget 1400`. Read the matching mode guide from
+prompts/ only if it is available in this project.
+Do not re-index outside the allowed project root, and do not treat notes as source truth.
+Track evidence, decisions, failures and verified tests as separate records. Keep
+AGENTS.md short and stable. Load source files only when linked to the active task.
+On each milestone: run checkpoint and handoff.
+On blocked actions: stop and report exact evidence and needed permission.
+Do not autonomously interact with a real target unless authorization and rules explicitly allow it.
