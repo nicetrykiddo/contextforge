@@ -5,6 +5,7 @@ Python 3.10+; standard library only. Never contacts a network service.
 from __future__ import annotations
 
 import argparse
+import contextforge_reasoning as global_reasoning
 import datetime as dt
 import hashlib
 import fnmatch
@@ -19,7 +20,7 @@ import tempfile
 import uuid
 from pathlib import Path
 
-VERSION = '3.1.0'
+VERSION = '3.2.0'
 STATE_DIR = '.ctx'
 KINDS = ('evidence', 'hypothesis', 'decision', 'failure', 'finding', 'note', 'checkpoint')
 STATUSES = ('verified', 'unverified', 'rejected', 'blocked', 'resolved')
@@ -438,6 +439,17 @@ def context_text(root, state, task_id, query, budget):
     else:
         lines += ['No checkpoint saved. Save one after meaningful progress.', '']
     lines += pinned_lines(root, task_id) + ['']
+    # General lessons are only reviewed hints, never project facts or model policies.
+    # Zero local project data is written to the global store by this lookup.
+    if budget >= 800:
+        signal = ' '.join([query or '', task.get('goal', '') if task else '',
+                           cp.get('summary', '') if cp else '',
+                           cp.get('next', '') if cp else ''])
+        global_lines = global_reasoning.selected(signal, max_items=2,
+                                                  budget=min(150, budget // 8))
+        if global_lines:
+            lines += ['## Optional global reasoning reminders (not policy)',
+                      *global_lines, '']
     found = [r for r in effective_records(root) if 'pinned' not in r.get('tags', []) and (not task_id or r.get('task') in (task_id, None))]
     found.sort(key=lambda r: (score(r, task_id, query), r['at']), reverse=True)
     lines.append('## High-relevance records (reference IDs, no assumed truth)')
@@ -1165,10 +1177,14 @@ def cli():
     y.set_defaults(func=lane_pivot)
     y = sx.add_parser('status'); y.set_defaults(func=lane_status)
     y = sx.add_parser('history'); y.set_defaults(func=lane_status)
+    global_reasoning.register(sp)
     args = p.parse_args()
     if hasattr(args, 'budget') and not (100 <= args.budget <= 100000):
         die('Budget must be 100–100000 estimated tokens')
-    args.func(args)
+    try:
+        args.func(args)
+    except ValueError as exc:
+        die(str(exc))
 
 
 if __name__ == '__main__':
