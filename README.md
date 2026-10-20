@@ -1,4 +1,4 @@
-# ContextForge 3.2
+# ContextForge 3.3
 
 **Long-session project memory for Codex. Not a model guardrail, policy override, or agent controller.**
 
@@ -35,11 +35,11 @@ A GitHub URL alone does not install a skill; Codex must have the repository avai
 ## Efficient long-chat workflow
 
 1. Fill `.ctx/MISSION.md` with the real objective, acceptance test and **path/link to the full original source**. Fill `.ctx/SCOPE.md` with any existing engagement context.
-2. Use `contextforge task add 'Short goal' --goal 'Specific outcome'` to separate research threads.
+2. Use `contextforge task add 'Short goal' --goal 'Specific outcome'` to separate research threads. The first task uses the legacy `.ctx/MISSION.md`; adding a second task creates `.ctx/tasks/TASK_ID/MISSION.md` cards so each target has its own objective. **Fill the new task card**; do not reuse the first target's mission.
 3. At startup or after compaction, run **one** `contextforge context --budget 1200`. The latest checkpoint now comes before long pinned or historical lists.
 4. If you need only one topic, use `contextforge context --query 'authentication' --budget 900`, `contextforge search 'authentication'`, or inspect the referenced source file.
 5. After a meaningful finding, use `contextforge pin --title 'Critical clue' --body 'Observation, conditions and limits' --status verified --proof 'logs/example.txt:42'`.
-6. At a meaningful milestone, use `contextforge checkpoint --summary 'Current state' --next 'Precise next action'`. Before compaction, `contextforge snapshot`; for chat-switch text, `contextforge handoff --budget 1200`.
+6. At a meaningful milestone, use `contextforge checkpoint --summary 'Current state' --next 'Precise next action'`. Checkpoints are isolated per active task. Before compaction, `contextforge snapshot`; for chat-switch text, `contextforge handoff --budget 1200`. Handoff **does not scan files automatically**; run `contextforge handoff --refresh` only when you need an updated file inventory.
 
 Avoid recording every thought or rerunning `scan`, `audit`, and `rethink` at every chat turn: that just wastes the context you're trying to save. These commands remain available on demand.
 
@@ -47,9 +47,9 @@ Avoid recording every thought or rerunning `scan`, `audit`, and `rethink` at eve
 
 | Path | Role |
 | --- | --- |
-| `.ctx/MISSION.md` | Exact original task context and source pointer |
+| `.ctx/MISSION.md` | Legacy/single-task mission and shared project mission |\n| `.ctx/tasks/TASK_ID/MISSION.md` | Independent target mission (multi-task projects) |
 | `.ctx/SCOPE.md` | Existing project/program boundaries |
-| `.ctx/state.json` | Tasks, checkpoint, and bounded file inventory |
+| `.ctx/state.json` | Tasks, per-task checkpoints, legacy checkpoint mirror, and bounded file inventory |
 | `.ctx/records.jsonl` | Timestamped evidence/decisions/failures |
 | `.ctx/lanes.json` | Optional experiment notes/history |
 | `.ctx/HANDOFF.md` | Generated compact resume view |
@@ -79,7 +79,7 @@ See `.agents/skills/contextforge/references/workflow.md` for more command syntax
 - No hook can recover unrecorded internal thoughts, guarantee perfect memory, or interrupt an already-running tool/model call.
 - Token budgets approximate 4 characters per token, not the model's exact tokenizer.
 - Hook support varies by Codex version/frontend. Check that lifecycle callbacks actually fire.
-- Record and checkpoint writes are not safe for multiple simultaneous writers; coordinate collaborators.
+- CLI project reads/writes are serialized via a project lock; global reasoning mutations have a separate lock. Direct Python API calls that bypass the CLI are not guaranteed transactional.\n- `--proof` remains an **attested pointer**, not independent validation. Use optional `--proof-file` to capture an SHA256 digest of a local artifact; `contextforge check` flags later changes. File integrity does not prove an exploit claim.\n- Project memory files use private permissions on initialization/upgrade; check ownership on shared machines.
 - A compact handoff is an index into source evidence, **not a substitute for the original files**.
 
 ContextForge makes context recovery reliable **to the extent that important discoveries have been persisted**. It cannot guarantee a CTF solve or detect every misleading lead.
@@ -104,7 +104,7 @@ $ctx approve L-REPLACE_WITH_PRINTED_ID
 $ctx select --query 'tool accepted but outcome is unconfirmed' --budget 160
 ```
 
-Use `reasoning reject ID` for a pending proposal and `reasoning retire ID` to deactivate an approved lesson. Approval is always explicit; the system does **not** mine logs and promote mistakes automatically. Near-duplicates are blocked by a deterministic similarity heuristic, not semantic AI matching. Maximum 24 approved lessons.
+Use `reasoning reject ID` for a pending proposal and `reasoning retire ID` to deactivate an approved lesson. Approval is always explicit; the system does **not** mine logs and promote mistakes automatically. Near-duplicates are blocked by a deterministic similarity heuristic, not semantic AI matching. Retrieval additionally uses a small fixed taxonomy of reasoning concepts; it does not use embeddings or retrain the model. Maximum 24 approved lessons.
 
 Ordinary project context can include at most **two** relevant approved reminders, and only when enough tokens remain (budget at least 800). They appear after mission, checkpoint and pinned evidence. Irrelevant lessons are omitted. Explicit `reasoning select` can return up to three. Store is local to this computer, not synced.
 
