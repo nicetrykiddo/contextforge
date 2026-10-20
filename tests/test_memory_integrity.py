@@ -127,6 +127,32 @@ class MemoryIntegrityTests(unittest.TestCase):
         self.cmd('task', 'focus', b)
         self.assertIn('Original mission is not anchored', self.cmd('audit').stdout)
 
+    def test_compaction_does_not_follow_symlinked_task_directory(self):
+        self.cmd('init')
+        self.task('First', 'First scope')
+        b = self.task('Second', 'Second scope')
+        target = self.project / '.ctx/tasks' / b
+        import shutil
+        shutil.rmtree(target)
+        outside = self.base / 'private'
+        outside.mkdir()
+        (outside / 'MISSION.md').write_text('DO NOT ARCHIVE EXTERNAL SECRET')
+        target.symlink_to(outside, target_is_directory=True)
+        self.cmd('snapshot')
+        archive = sorted((self.project / '.ctx/compactions').glob('*.zip'))[-1]
+        with zipfile.ZipFile(archive) as z:
+            self.assertNotIn(f'tasks/{b}/MISSION.md', z.namelist())
+
+    def test_tiny_context_prioritizes_next_action(self):
+        self.cmd('init')
+        self.task('Current work', 'Large but testable mission')
+        self.cmd('checkpoint', '--summary', 'State is reproducible',
+                 '--next', 'Verify final parser state')
+        text = self.cmd('context', '--budget', '100').stdout
+        self.assertIn('Verify final parser state', text)
+        self.assertIn('Mission:', text)
+        self.assertLessEqual(len(text), 401)
+
     def test_private_state_permissions(self):
         self.cmd('init')
         self.task('A', 'One')
