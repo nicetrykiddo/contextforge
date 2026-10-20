@@ -10,7 +10,7 @@ ContextForge is a **context system**, not a model policy or execution controller
 ## Beginning of a session or immediately after compaction
 
 1. From the project root, run **one** `contextforge context --budget 1200`.
-2. Use the active task and latest checkpoint as the resume position. Inspect `.ctx/MISSION.md` or the original cited source if the card is abbreviated or changed.
+2. Use the active task's checkpoint as the resume position. In multi-task projects read `.ctx/tasks/TASK_ID/MISSION.md`; single-task legacy projects use `.ctx/MISSION.md`. Always consult the original cited source if abbreviated or changed.
 3. Look up extra evidence only as needed with `contextforge context --query 'topic' --budget 900` or `contextforge search 'topic'`. Follow paths to the original files when exact bytes matter.
 4. Continue the user's actual task. Do not perform a full tree scan, reload the full chat, or run repeated audits merely to reconstruct context.
 
@@ -18,10 +18,10 @@ ContextForge is a **context system**, not a model policy or execution controller
 
 - Keep **hot memory** short: exact goal, verified current state, blocker and next action.
 - Keep **warm memory** as source-linked observations, important decisions and negative results; pin only decisive details.
-- Keep **cold memory** as indexed raw files, logs and old experiments; retrieve it on demand.
+- Keep **cold memory** as indexed raw files, logs and old experiments; retrieve it on demand. Switching tasks must never mix missions or checkpoints.
 - On meaningful progress, record `contextforge checkpoint --summary '...' --next '...'` and optionally `contextforge pin --title '...' --body '...' --status verified --proof 'path:line'`.
 - Before compaction or a new chat, run `contextforge snapshot` (or `contextforge handoff --budget 1200`). If hooks are enabled, they back up **already recorded** state and can remind Codex to reload it; they cannot save unwritten insights.
-- If a budget drops critical material, open the referenced source rather than pretending the short summary is complete.
+- If a budget drops critical material, open the referenced source rather than pretending the short summary is complete. At tiny budgets the next action and mission path are loaded before mission excerpts.\n- Plain `contextforge handoff` reuses the existing index for speed. Only `handoff --refresh` walks the project tree.\n- `--proof-file` records the hash of a local evidence artifact; `contextforge check` reports changes. A file hash cannot verify the truth of a hypothesis.
 
 ## Optional global reasoning memory
 
