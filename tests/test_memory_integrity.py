@@ -41,8 +41,12 @@ class MemoryIntegrityTests(unittest.TestCase):
         b = self.task('Target B', 'Investigate B')
         mission_a = self.project / '.ctx/tasks' / a / 'MISSION.md'
         mission_b = self.project / '.ctx/tasks' / b / 'MISSION.md'
+        scope_a = self.project / '.ctx/tasks' / a / 'SCOPE.md'
+        scope_b = self.project / '.ctx/tasks' / b / 'SCOPE.md'
         self.assertIn('MISSION A ONLY', mission_a.read_text())
         self.assertIn('REPLACE_ME', mission_b.read_text())
+        self.assertTrue(scope_a.exists())
+        self.assertIn('(fill in)', scope_b.read_text())
         mission_b.write_text('MISSION B ONLY: investigate app.beta.example\n')
         self.cmd('task', 'focus', b)
         self.cmd('checkpoint', '--summary', 'B STATE MUST SURVIVE',
@@ -62,6 +66,8 @@ class MemoryIntegrityTests(unittest.TestCase):
         with zipfile.ZipFile(archive) as z:
             self.assertIn(f'tasks/{a}/MISSION.md', z.namelist())
             self.assertIn(f'tasks/{b}/MISSION.md', z.namelist())
+            self.assertIn(f'tasks/{a}/SCOPE.md', z.namelist())
+            self.assertIn(f'tasks/{b}/SCOPE.md', z.namelist())
 
     def test_corrupt_global_reasoning_does_not_break_local_context(self):
         self.cmd('init')
