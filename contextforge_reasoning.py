@@ -5,6 +5,7 @@ No LLM API, network access, model setting changes, or automatic promotion.
 from __future__ import annotations
 
 import datetime as dt
+import contextlib
 import difflib
 import json
 import os
@@ -12,6 +13,12 @@ import re
 import tempfile
 import uuid
 from pathlib import Path
+
+try:
+    import fcntl
+except ImportError:
+    fcntl = None
+    import msvcrt
 
 SCHEMA = 1
 MAX_APPROVED = 24
@@ -42,6 +49,34 @@ def utc():
 
 def fail(message):
     raise ValueError(message)
+
+
+@contextlib.contextmanager
+def store_lock():
+    """Serialize global lesson mutations across Codex processes."""
+    directory = home()
+    if directory.is_symlink():
+        fail('Reasoning directory must not be a symlink')
+    directory.mkdir(parents=True, mode=0o700, exist_ok=True)
+    os.chmod(directory, 0o700)
+    lock_path = directory / '.reasoning.lock'
+    if lock_path.is_symlink():
+        fail('Reasoning lock must not be a symlink')
+    fd = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o600)
+    try:
+        if fcntl:
+            fcntl.flock(fd, fcntl.LOCK_EX)
+        else:
+            os.lseek(fd, 0, os.SEEK_SET)
+            msvcrt.locking(fd, msvcrt.LK_LOCK, 1)
+        yield
+    finally:
+        if fcntl:
+            fcntl.flock(fd, fcntl.LOCK_UN)
+        else:
+            os.lseek(fd, 0, os.SEEK_SET)
+            msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
+        os.close(fd)
 
 
 def read_store():
@@ -162,6 +197,31 @@ def list_lessons(args):
     print(f'{len(matching)} lesson(s); store={path()}')
 
 
+# Small conceptual vocabulary rather than pretending literal keywords capture meaning.
+# Curated, reviewable, deterministic; NOT embedding-based semantic search.
+CONCEPTS = {
+    'completion_vs_acceptance': {'accept', 'accepted', 'acceptance', '202', 'queued',
+        'queue', 'success', 'successful', 'received', 'finish', 'finished',
+        'completion', 'complete', 'completed', 'execute', 'executed', 'processed',
+        'effect', 'effects', 'downstream', 'delivered', 'confirmed', 'confirm'},
+    'hypothesis_vs_fact': {'assume', 'assumed', 'assumption', 'guess', 'guessed',
+        'hypothesis', 'premise', 'inferred', 'inference', 'confidence',
+        'confident', 'speculative', 'evidence', 'proof', 'observed', 'uncertain'},
+    'repetition_without_progress': {'loop', 'looping', 'repeated', 'repeat',
+        'retry', 'retries', 'rerun', 'again', 'stuck', 'stalled',
+        'unproductive', 'progress', 'hours', 'iteration', 'iterations'},
+    'generalization_scope': {'scope', 'generalize', 'generalized', 'sample',
+        'tested', 'unseen', 'negative', 'absence', 'impossible', 'surface'},
+    'context_recovery': {'memory', 'context', 'compaction', 'forgot',
+        'forget', 'recovery', 'resume', 'handoff', 'checkpoint', 'lost'},
+}
+
+
+def concept_keys(value):
+    words = set(re.findall(r'[a-z0-9]+', value.lower()))
+    return {key for key, terms in CONCEPTS.items() if words & terms}
+
+
 def relevance(lesson, query):
     q = tokens(query)
     if not q:
@@ -169,7 +229,8 @@ def relevance(lesson, query):
     trigger = tokens(lesson['when'] + ' ' + ' '.join(lesson['tags']))
     principle = tokens(lesson['principle'])
     overlap = len(q & trigger)
-    return overlap * 4 + len(q & principle)
+    concepts = concept_keys(query) & concept_keys(lesson['when'] + ' ' + lesson['principle'])
+    return overlap * 4 + len(q & principle) + (4 * len(concepts))
 
 
 def selected(query, *, max_items=MAX_RENDERED, budget=240):
