@@ -720,7 +720,10 @@ def compaction_snapshot(root, *, event='manual', budget=2200, session=''):
                             die(f'{name} exceeds snapshot file size limit (8MB)')
                         z.write(fp, arcname=name)
                 for task_card in sorted((ctx / 'tasks').glob('*/*.md')):
-                    if task_card.is_file() and not task_card.is_symlink():
+                    # Never archive content reached through a symlinked task directory.
+                    if (task_card.is_file() and not task_card.is_symlink()
+                            and task_card.resolve().is_relative_to(ctx.resolve())
+                            and task_card.stat().st_size <= 8_000_000):
                         z.write(task_card, arcname=task_card.relative_to(ctx).as_posix())
                 z.writestr('manifest.json', json.dumps({
                     'version': VERSION, 'time': now(), 'event': event,
