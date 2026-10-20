@@ -199,6 +199,16 @@ def task_checkpoint(state, tid):
     return legacy if legacy and legacy.get('task') == tid else None
 
 
+def task_scope(root, state, tid):
+    shared = paths(root)[0] / 'SCOPE.md'
+    if not tid:
+        return shared
+    dedicated = paths(root)[0] / 'tasks' / tid / 'SCOPE.md'
+    if dedicated.is_file():
+        return dedicated
+    return shared if len(state.get('tasks', {})) <= 1 else dedicated
+
+
 def task_mission(root, state, tid):
     shared = paths(root)[0] / 'MISSION.md'
     if not tid:
@@ -259,11 +269,12 @@ def upgrade(args):
     tasks = list(state['tasks'])
     if len(tasks) > 1:
         for tid in tasks:
-            mission = ctx / 'tasks' / tid / 'MISSION.md'
-            if not mission.exists():
-                mission.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-                mission.write_text(MISSION_TEMPLATE, encoding='utf-8')
-                print(f'NOTICE: Fill {mission.relative_to(root)}; shared mission is ambiguous.')
+            for name, template in (('MISSION.md', MISSION_TEMPLATE), ('SCOPE.md', SCOPE_TEMPLATE)):
+                card = ctx / 'tasks' / tid / name
+                if not card.exists():
+                    card.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+                    card.write_text(template, encoding='utf-8')
+                    print(f'NOTICE: Fill {card.relative_to(root)}; shared task context is ambiguous.')
     if changed:
         store(root, state)
     secure_ctx(root)
@@ -278,18 +289,20 @@ def task_add(args):
     if state['tasks']:
         ctx = paths(root)[0]
         for old in state['tasks']:
-            mission = ctx / 'tasks' / old / 'MISSION.md'
-            if not mission.exists():
-                mission.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-                source = ctx / 'MISSION.md'
-                if len(state['tasks']) == 1 and source.is_file():
-                    import shutil
-                    shutil.copy2(source, mission)
-                else:
-                    mission.write_text(MISSION_TEMPLATE, encoding='utf-8')
-        fresh = ctx / 'tasks' / tid / 'MISSION.md'
-        fresh.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-        fresh.write_text(MISSION_TEMPLATE, encoding='utf-8')
+            for name, template in (('MISSION.md', MISSION_TEMPLATE), ('SCOPE.md', SCOPE_TEMPLATE)):
+                card = ctx / 'tasks' / old / name
+                if not card.exists():
+                    card.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+                    source = ctx / name
+                    if len(state['tasks']) == 1 and source.is_file():
+                        import shutil
+                        shutil.copy2(source, card)
+                    else:
+                        card.write_text(template, encoding='utf-8')
+        for name, template in (('MISSION.md', MISSION_TEMPLATE), ('SCOPE.md', SCOPE_TEMPLATE)):
+            card = ctx / 'tasks' / tid / name
+            card.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+            card.write_text(template, encoding='utf-8')
     state['tasks'][tid] = {'title': args.title, 'scope': scopes, 'created': now(),
                            'goal': args.goal or '', 'status': 'active'}
     if not state['active_task']:
@@ -553,6 +566,7 @@ def context_text(root, state, task_id, query, budget):
     warning = ('\nWARNING: Context incomplete. Read the exact task mission and query '
                'source-linked records; this summary is not authoritative.\n')
     mission_path = task_mission(root, state, task_id).relative_to(root)
+    scope_path = task_scope(root, state, task_id).relative_to(root)
     if budget < 250:
         # At tiny budgets, resume position beats an incomplete mission excerpt.
         tiny = [f'# ContextForge {state["project"]}',
@@ -567,6 +581,7 @@ def context_text(root, state, task_id, query, budget):
         f'Active task: {task_id or "unset"} | {brief(task["title"], 140) if task else "no task"}',
         f'Goal: {brief(task.get("goal", ""), 140) if task else "unset"}',
         f'Exact mission source: {mission_path}',
+        f'Engagement context: {scope_path}',
         '## Latest checkpoint for this task',
     ]
     if cp:
@@ -704,7 +719,7 @@ def compaction_snapshot(root, *, event='manual', budget=2200, session=''):
                         if fp.stat().st_size > 8_000_000:
                             die(f'{name} exceeds snapshot file size limit (8MB)')
                         z.write(fp, arcname=name)
-                for task_card in sorted((ctx / 'tasks').glob('*/MISSION.md')):
+                for task_card in sorted((ctx / 'tasks').glob('*/*.md')):
                     if task_card.is_file() and not task_card.is_symlink():
                         z.write(task_card, arcname=task_card.relative_to(ctx).as_posix())
                 z.writestr('manifest.json', json.dumps({
@@ -1229,11 +1244,11 @@ def audit(args):
     lanes = [l for l in load_lanes(root)['lanes'].values() if l.get('task') == tid]
     active = next((l for l in reversed(lanes) if l.get('status') == 'active'), None)
     mission = task_mission(root, state, tid)
-    scope = paths(root)[0] / 'SCOPE.md'
+    scope = task_scope(root, state, tid)
     warnings = []
     if not mission.is_file() or 'REPLACE_ME' in mission.read_text(encoding='utf-8'):
         warnings.append('CRITICAL: Original mission is not anchored. Stop and preserve exact objective/constraints.')
-    if not scope.is_file() or 'REPLACE_ME' in scope.read_text(encoding='utf-8'):
+    if not scope.is_file() or '(fill in)' in scope.read_text(encoding='utf-8') or 'REPLACE_ME' in scope.read_text(encoding='utf-8'):
         warnings.append('CRITICAL: Authorization/scope not verified; do not test a live target.')
     if not state.get('active_task'):
         warnings.append('No active task; set a measurable outcome before investigating.')
