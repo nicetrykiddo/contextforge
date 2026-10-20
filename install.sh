@@ -34,6 +34,7 @@ fi
 python3 -c 'import sys; assert sys.version_info >= (3,10), "Python 3.10+ required"'
 mkdir -p "$HOME/.local/bin" "$HOME/.agents/skills/contextforge/references"
 install -m 0755 "$here/ctx.py" "$HOME/.local/bin/contextforge"
+install -m 0644 "$here/contextforge_reasoning.py" "$HOME/.local/bin/contextforge_reasoning.py"
 install -m 0644 "$here/.agents/skills/contextforge/SKILL.md" "$HOME/.agents/skills/contextforge/SKILL.md"
 install -m 0644 "$here/.agents/skills/contextforge/references/workflow.md" "$HOME/.agents/skills/contextforge/references/workflow.md"
 install -m 0644 "$here/.agents/skills/contextforge/references/field-lessons.md" "$HOME/.agents/skills/contextforge/references/field-lessons.md"
