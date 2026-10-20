@@ -1,4 +1,4 @@
-# ContextForge 3.1
+# ContextForge 3.2
 
 **Long-session project memory for Codex. Not a model guardrail, policy override, or agent controller.**
 
@@ -83,3 +83,29 @@ See `.agents/skills/contextforge/references/workflow.md` for more command syntax
 - A compact handoff is an index into source evidence, **not a substitute for the original files**.
 
 ContextForge makes context recovery reliable **to the extent that important discoveries have been persisted**. It cannot guarantee a CTF solve or detect every misleading lead.
+
+## Global reasoning memory: reviewed, abstract, optional
+
+One repository, two independent stores:
+
+- **Local:** `.ctx/` keeps target-specific findings and compaction recovery.
+- **Global:** `~/.config/contextforge/reasoning.json` (or `$XDG_CONFIG_HOME/contextforge/reasoning.json`) keeps only approved, project-agnostic lessons about reasoning.
+
+Each global lesson contains a *principle*, a general situation (*when*) and a mental check (*response*). No project data is copied automatically. Nothing changes LLM safety instructions, permissions, tools, or model settings. Global lessons are context, not model retraining.
+
+```bash
+ctx="contextforge reasoning"
+$ctx propose --principle 'A successful tool response does not prove the goal was reached' \
+  --when 'a tool reports acceptance before its effects are confirmed' \
+  --response 'separate receipt, processing, and final observable outcome' \
+  --tags 'tools verification progress'
+$ctx list --status proposed
+$ctx approve L-REPLACE_WITH_PRINTED_ID
+$ctx select --query 'tool accepted but outcome is unconfirmed' --budget 160
+```
+
+Use `reasoning reject ID` for a pending proposal and `reasoning retire ID` to deactivate an approved lesson. Approval is always explicit; the system does **not** mine logs and promote mistakes automatically. Near-duplicates are blocked by a deterministic similarity heuristic, not semantic AI matching. Maximum 24 approved lessons.
+
+Ordinary project context can include at most **two** relevant approved reminders, and only when enough tokens remain (budget at least 800). They appear after mission, checkpoint and pinned evidence. Irrelevant lessons are omitted. Explicit `reasoning select` can return up to three. Store is local to this computer, not synced.
+
+Don't put targets, commands, IPs, URLs, emails, credentials, flags, or user data in global lessons. This is judgment memory, not a cross-target technical notes dump.
