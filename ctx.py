@@ -215,6 +215,8 @@ def init(args):
     directory, path, event_file = paths(root)
     if path.exists():
         die('Already initialized. Existing state left untouched.')
+    if directory.exists() and any(p.name != '.contextforge.lock' for p in directory.iterdir()):
+        die('Uninitialized .ctx already contains files; refusing destructive init.')
     directory.mkdir(mode=0o700, exist_ok=True)
     os.chmod(directory, 0o700)
     roots = [safe_relative(root, p) for p in parse_links(args.scope or '.')]
@@ -632,8 +634,8 @@ def context(args):
 
 def handoff(args):
     root = root_from(args)
-    if not args.no_refresh:
-        # Bounded metadata refresh ensures a new chat sees newly created/removed paths.
+    if args.refresh:
+        # Explicit opt-in; large tree walks on every handoff hurt context efficiency.
         scan(argparse.Namespace(root=str(root), task=None, limit=0))
     state = load(root)
     task_id = args.task or state['active_task']
@@ -1190,7 +1192,7 @@ def audit(args):
              r.get('kind') in ('evidence', 'finding') and r.get('proof')]
     lanes = [l for l in load_lanes(root)['lanes'].values() if l.get('task') == tid]
     active = next((l for l in reversed(lanes) if l.get('status') == 'active'), None)
-    mission = paths(root)[0] / 'MISSION.md'
+    mission = task_mission(root, state, tid)
     scope = paths(root)[0] / 'SCOPE.md'
     warnings = []
     if not mission.is_file() or 'REPLACE_ME' in mission.read_text(encoding='utf-8'):
@@ -1288,7 +1290,8 @@ def cli():
     x.add_argument('--query', default=''); x.add_argument('--budget', type=int, default=1500); x.set_defaults(func=rethink)
     x = sp.add_parser('handoff', help='Generate a bounded next-chat handoff from records')
     x.add_argument('--task'); x.add_argument('--budget', type=int, default=1500)
-    x.add_argument('--no-refresh', action='store_true', help='Skip bounded inventory refresh')
+    x.add_argument('--refresh', action='store_true', help='Explicitly refresh inventory before handoff')
+    x.add_argument('--no-refresh', action='store_true', help='Deprecated no-op; refresh is opt-in')
     x.set_defaults(func=handoff)
     x = sp.add_parser('search'); x.add_argument('query'); x.add_argument('--limit', type=int, default=25); x.set_defaults(func=search)
     x = sp.add_parser('graph'); x.add_argument('--dot', action='store_true'); x.set_defaults(func=graph)
