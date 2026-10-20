@@ -153,6 +153,20 @@ class MemoryIntegrityTests(unittest.TestCase):
         self.assertIn('Mission:', text)
         self.assertLessEqual(len(text), 401)
 
+    def test_hook_uses_payload_project_not_shell_working_directory(self):
+        self.cmd('init')
+        self.task('Hook test', 'Maintain snapshot in right root')
+        nested = self.project / 'src'
+        nested.mkdir()
+        payload = {'hook_event_name': 'PreCompact', 'cwd': str(nested),
+                   'session_id': 'test', 'trigger': 'manual'}
+        result = subprocess.run([sys.executable, str(CLI), 'hook'],
+                                input=json.dumps(payload), text=True, capture_output=True,
+                                cwd=nested, env=self.env, timeout=20)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertFalse((nested / '.ctx').exists())
+        self.assertTrue(list((self.project / '.ctx/compactions').glob('*.zip')))
+
     def test_private_state_permissions(self):
         self.cmd('init')
         self.task('A', 'One')
