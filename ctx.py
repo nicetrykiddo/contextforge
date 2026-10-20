@@ -552,21 +552,33 @@ def context_text(root, state, task_id, query, budget):
     max_chars = budget * 4
     warning = ('\nWARNING: Context incomplete. Read the exact task mission and query '
                'source-linked records; this summary is not authoritative.\n')
+    mission_path = task_mission(root, state, task_id).relative_to(root)
+    if budget < 250:
+        # At tiny budgets, resume position beats an incomplete mission excerpt.
+        tiny = [f'# ContextForge {state["project"]}',
+                f'Task: {brief(task["title"], 48) if task else "unset"}',
+                f'Mission: {mission_path}',
+                f'State: {brief(cp.get("summary"), 65) if cp else "No checkpoint"}',
+                f'Next: {brief(cp.get("next"), 65) if cp else "Read mission"}']
+        result = '\n'.join(tiny) + '\n'
+        return result[:max(0, max_chars-len(warning))].rstrip() + warning
     core = [
         f'# ContextForge | {state["project"]} | {state["mode"]}',
         f'Active task: {task_id or "unset"} | {brief(task["title"], 140) if task else "no task"}',
-        f'Goal: {brief(task.get("goal", ""), 160) if task else "unset"}',
-        '## Mission anchor (read original source when abbreviated)',
-        *mission_summary(root, max_chars=min(1000, max(90, budget)), state=state, task_id=task_id),
+        f'Goal: {brief(task.get("goal", ""), 140) if task else "unset"}',
+        f'Exact mission source: {mission_path}',
         '## Latest checkpoint for this task',
     ]
     if cp:
-        core.extend([f'Checkpoint [{cp["at"]}]: {brief(cp["summary"], 270)}',
-                     f'Next: {brief(cp["next"], 230)}',
+        core.extend([f'Checkpoint [{cp["at"]}]: {brief(cp["summary"], 250)}',
+                     f'Next: {brief(cp["next"], 210)}',
                      f'Blocker: {brief(cp.get("blocker"), 140)}' if cp.get('blocker') else '',
                      f'Verified via: {brief(cp.get("verified_by"), 140)}' if cp.get('verified_by') else ''])
     else:
         core.append('No task checkpoint recorded. Recover from original artifacts.')
+    core += ['## Mission anchor (read original source when abbreviated)',
+             *mission_summary(root, max_chars=min(1000, max(90, budget)),
+                              state=state, task_id=task_id)]
     # Preserve the essential checkpoint and mission before any optional context.
     primary = '\n'.join(x for x in core if x) + '\n'
     if len(primary) >= max_chars - len(warning):
