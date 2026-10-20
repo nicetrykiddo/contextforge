@@ -247,11 +247,13 @@ def upgrade(args):
     card = ctx / 'MISSION.md'
     if not card.exists():
         card.write_text(MISSION_TEMPLATE, encoding='utf-8')
-    if 'checkpoints' not in state:
+    changed = 'checkpoints' not in state
+    if changed:
         state['checkpoints'] = {}
     legacy = state.get('checkpoint')
-    if legacy:
-        state['checkpoints'].setdefault(legacy.get('task') or '__project__', legacy)
+    if legacy and (legacy.get('task') or '__project__') not in state['checkpoints']:
+        state['checkpoints'][legacy.get('task') or '__project__'] = legacy
+        changed = True
     tasks = list(state['tasks'])
     if len(tasks) > 1:
         for tid in tasks:
@@ -260,7 +262,8 @@ def upgrade(args):
                 mission.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
                 mission.write_text(MISSION_TEMPLATE, encoding='utf-8')
                 print(f'NOTICE: Fill {mission.relative_to(root)}; shared mission is ambiguous.')
-    store(root, state)
+    if changed:
+        store(root, state)
     secure_ctx(root)
     print('Upgraded without replacing records or AGENTS.md.')
 
