@@ -197,6 +197,31 @@ def list_lessons(args):
     print(f'{len(matching)} lesson(s); store={path()}')
 
 
+# Small conceptual vocabulary rather than pretending literal keywords capture meaning.
+# Curated, reviewable, deterministic; NOT embedding-based semantic search.
+CONCEPTS = {
+    'completion_vs_acceptance': {'accept', 'accepted', 'acceptance', '202', 'queued',
+        'queue', 'success', 'successful', 'received', 'finish', 'finished',
+        'completion', 'complete', 'completed', 'execute', 'executed', 'processed',
+        'effect', 'effects', 'downstream', 'delivered', 'confirmed', 'confirm'},
+    'hypothesis_vs_fact': {'assume', 'assumed', 'assumption', 'guess', 'guessed',
+        'hypothesis', 'premise', 'inferred', 'inference', 'confidence',
+        'confident', 'speculative', 'evidence', 'proof', 'observed', 'uncertain'},
+    'repetition_without_progress': {'loop', 'looping', 'repeated', 'repeat',
+        'retry', 'retries', 'rerun', 'again', 'stuck', 'stalled',
+        'unproductive', 'progress', 'hours', 'iteration', 'iterations'},
+    'generalization_scope': {'scope', 'generalize', 'generalized', 'sample',
+        'tested', 'unseen', 'negative', 'absence', 'impossible', 'surface'},
+    'context_recovery': {'memory', 'context', 'compaction', 'forgot',
+        'forget', 'recovery', 'resume', 'handoff', 'checkpoint', 'lost'},
+}
+
+
+def concept_keys(value):
+    words = set(re.findall(r'[a-z0-9]+', value.lower()))
+    return {key for key, terms in CONCEPTS.items() if words & terms}
+
+
 def relevance(lesson, query):
     q = tokens(query)
     if not q:
@@ -204,7 +229,8 @@ def relevance(lesson, query):
     trigger = tokens(lesson['when'] + ' ' + ' '.join(lesson['tags']))
     principle = tokens(lesson['principle'])
     overlap = len(q & trigger)
-    return overlap * 4 + len(q & principle)
+    concepts = concept_keys(query) & concept_keys(lesson['when'] + ' ' + lesson['principle'])
+    return overlap * 4 + len(q & principle) + (4 * len(concepts))
 
 
 def selected(query, *, max_items=MAX_RENDERED, budget=240):
