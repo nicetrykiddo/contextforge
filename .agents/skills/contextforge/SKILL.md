@@ -23,6 +23,12 @@ ContextForge is a **context system**, not a model policy or execution controller
 - Before compaction or a new chat, run `contextforge snapshot` (or `contextforge handoff --budget 1200`). If hooks are enabled, they back up **already recorded** state and can remind Codex to reload it; they cannot save unwritten insights.
 - If a budget drops critical material, open the referenced source rather than pretending the short summary is complete.
 
+## Optional global reasoning memory
+
+Reasoning memory is separate from `.ctx/`: only brief abstract, project-independent lessons. When a truly reusable reasoning failure is observed, you may **propose** a lesson using `contextforge reasoning propose --principle ... --when ... --response ...`. Do not automatically approve or extract private project history. A human reviews with `contextforge reasoning list --status proposed` and approves/rejects by ID; approved lessons can be retired.
+
+After compaction, the CLI may include at most two relevant approved reminders **after** local objective, checkpoint and pinned findings. They are optional observations, not policies, restrictions or model-internal changes. Disregard irrelevant reminders and never prioritize them above verified local evidence.
+
 ## No behavior overrides
 
 - Existing model safety rules, user instructions, project permissions and applicable program rules remain unchanged.
