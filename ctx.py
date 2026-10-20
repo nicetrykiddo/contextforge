@@ -771,8 +771,9 @@ def hook(args):
             print('{}')
             return
         if event == 'PreCompact':
-            target, stale = compaction_snapshot(root, event=payload.get('trigger', 'unknown'),
-                                                session=str(payload.get('session_id', '')))
+            with project_lock(root):
+                target, stale = compaction_snapshot(root, event=payload.get('trigger', 'unknown'),
+                                                    session=str(payload.get('session_id', '')))
             message = f'ContextForge saved {target.relative_to(root)}.'
             if stale:
                 message += ' WARNING: latest checkpoint is stale; unrecorded insights cannot be recovered.'
@@ -1389,6 +1390,9 @@ def cli():
         if args.command == 'reasoning':
             with global_reasoning.store_lock():
                 args.func(args)
+        elif args.command in ('hook', 'hooks'):
+            # Hook payload identifies the real project; current cwd may be elsewhere.
+            args.func(args)
         else:
             root = root_from(args)
             if args.command == 'init':
