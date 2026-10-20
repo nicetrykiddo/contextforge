@@ -399,6 +399,19 @@ def scan(args):
         print('WARNING: Max-files limit reached; inventory is incomplete. Narrow --scope or increase explicitly.')
 
 
+def local_proof_hash(root, supplied):
+    """Record source-file integrity, not independent truth of the claim."""
+    relative = safe_relative(root, supplied, must_exist=True)
+    fp = root / relative
+    if not fp.is_file() or fp.is_symlink() or fp.stat().st_size > 16_000_000:
+        die('Proof artifact must be a regular non-symlink file <=16MB')
+    digest = hashlib.sha256()
+    with fp.open('rb') as stream:
+        for block in iter(lambda: stream.read(65536), b''):
+            digest.update(block)
+    return relative, digest.hexdigest()
+
+
 def add(args):
     root = root_from(args)
     state = load(root)
@@ -410,8 +423,9 @@ def add(args):
     bad = sorted(set(linked) - known)
     if bad:
         die(f'Unknown record references: {bad}')
-    if args.status == 'verified' and not args.proof:
-        die('Verified requires --proof (reproducible method, citation, or test output reference)')
+    proof_file = getattr(args, 'proof_file', None)
+    if args.status == 'verified' and not (args.proof or proof_file):
+        die('Verified requires --proof or --proof-file (attestation only)')
     if args.supersedes and args.supersedes not in known:
         die('Unknown superseded record')
     path = safe_relative(root, args.path) if args.path else None
@@ -419,10 +433,12 @@ def add(args):
         die(f'Path does not exist: {path}')
     if SENSITIVE.search((args.title or '') + ' ' + (args.body or '')):
         die('Possible secret in record. Store a redacted description, not credentials.')
+    proof_path, proof_hash = local_proof_hash(root, proof_file) if proof_file else (None, None)
     rec = {'id': 'R-' + uuid.uuid4().hex[:10], 'at': now(), 'task': task_id,
            'kind': args.kind, 'status': args.status, 'title': args.title,
            'body': args.body or '', 'path': path, 'links': linked,
-           'tags': parse_links(args.tags), 'proof': args.proof or '',
+           'tags': parse_links(args.tags), 'proof': args.proof or (proof_path or ''),
+           'proof_file': proof_path, 'proof_sha256': proof_hash,
            'supersedes': args.supersedes}
     append(root, rec)
     print(f'{rec["id"]} {rec["kind"]} [{rec["status"]}] {rec["title"]}')
@@ -431,8 +447,8 @@ def add(args):
 
 def pin(args):
     """Critical clue with provenance, using the existing linked evidence ledger."""
-    if args.status == 'verified' and not args.proof:
-        die('Verified pins require --proof (file path, command log, or reproducible source)')
+    if args.status == 'verified' and not (args.proof or getattr(args, 'proof_file', None)):
+        die('Verified pins require --proof or --proof-file')
     if len(args.body) > 1800:
         die('Pinned clue too long; keep only decisive detail and link to full source')
     if not args.body.strip():
@@ -440,6 +456,7 @@ def pin(args):
     add(argparse.Namespace(root=args.root, task=args.task, kind='evidence',
                            status=args.status, title=args.title, body=args.body,
                            path=args.path, proof=args.proof, links=args.links,
+                           proof_file=getattr(args, 'proof_file', None),
                            tags='pinned,critical', supersedes=args.supersedes))
 
 
@@ -852,6 +869,13 @@ def check(args):
             issues.append(f'{r["id"]} references missing task {r["task"]}')
         if r.get('path') and not (root / r['path']).exists():
             issues.append(f'{r["id"]} refers to removed path {r["path"]}')
+        if r.get('proof_file'):
+            try:
+                _, actual = local_proof_hash(root, r['proof_file'])
+                if actual != r.get('proof_sha256'):
+                    issues.append(f'{r["id"]} proof artifact changed since recorded')
+            except (OSError, SystemExit):
+                issues.append(f'{r["id"]} proof artifact missing or inaccessible')
     if state['active_task'] and state['active_task'] not in state['tasks']:
         issues.append('Active task missing')
     for s in state['scopes']:
@@ -1264,13 +1288,14 @@ def cli():
     x.add_argument('--title', required=True)
     x.add_argument('--body', default='')
     x.add_argument('--task'); x.add_argument('--links'); x.add_argument('--tags'); x.add_argument('--path')
-    x.add_argument('--proof', help='Required when status=verified')
+    x.add_argument('--proof', help='Self-attested proof reference')
+    x.add_argument('--proof-file', help='Optional file to SHA256 and recheck')
     x.add_argument('--supersedes', help='ID of older record superseded by this new record')
     x.set_defaults(func=add)
     x = sp.add_parser('pin', help='Persist a decisive clue with evidence provenance, prioritized across compaction')
     x.add_argument('--title', required=True); x.add_argument('--body', required=True)
     x.add_argument('--status', choices=('verified', 'unverified'), default='unverified')
-    x.add_argument('--proof'); x.add_argument('--path'); x.add_argument('--links'); x.add_argument('--task')
+    x.add_argument('--proof'); x.add_argument('--proof-file'); x.add_argument('--path'); x.add_argument('--links'); x.add_argument('--task')
     x.add_argument('--supersedes')
     x.set_defaults(func=pin)
     x = sp.add_parser('checkpoint', help='Save authoritative progress state')
