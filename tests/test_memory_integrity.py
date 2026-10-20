@@ -89,6 +89,38 @@ class MemoryIntegrityTests(unittest.TestCase):
         output = self.cmd('context', '--query', 'raven', '--budget', '350').stdout
         self.assertIn('VERY SPECIAL PARSER SIGNAL', output)
 
+    def test_changed_proof_file_is_detected(self):
+        self.cmd('init')
+        self.task('Evidence', 'Validate file digests')
+        artifact = self.project / 'fixture.txt'
+        artifact.write_text('original observation')
+        self.cmd('add', '--kind', 'evidence', '--title', 'Fixture response',
+                 '--status', 'verified', '--proof-file', 'fixture.txt')
+        self.assertEqual(self.cmd('check').returncode, 0)
+        artifact.write_text('tampered observation')
+        failure = self.cmd('check', ok=False)
+        self.assertEqual(failure.returncode, 1)
+        self.assertIn('proof artifact changed', failure.stdout)
+
+    def test_handoff_does_not_rescan_full_workspace_by_default(self):
+        self.cmd('init')
+        self.task('Fast handoff', 'Maintain minimal context')
+        (self.project / 'new.txt').write_text('unindexed')
+        self.cmd('handoff', '--budget', '900')
+        state = json.loads((self.project / '.ctx/state.json').read_text())
+        self.assertNotIn('new.txt', state['inventory'])
+        self.cmd('handoff', '--refresh', '--budget', '900')
+        state = json.loads((self.project / '.ctx/state.json').read_text())
+        self.assertIn('new.txt', state['inventory'])
+
+    def test_audit_checks_active_task_mission(self):
+        self.cmd('init')
+        self.task('First target', 'First goal')
+        (self.project / '.ctx/MISSION.md').write_text('First task source')
+        b = self.task('Second target', 'Second goal')
+        self.cmd('task', 'focus', b)
+        self.assertIn('Original mission is not anchored', self.cmd('audit').stdout)
+
     def test_private_state_permissions(self):
         self.cmd('init')
         self.task('A', 'One')
