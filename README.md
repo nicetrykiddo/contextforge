@@ -35,7 +35,7 @@ A GitHub URL alone does not install a skill; Codex must have the repository avai
 ## Efficient long-chat workflow
 
 1. Fill `.ctx/MISSION.md` with the real objective, acceptance test and **path/link to the full original source**. Fill `.ctx/SCOPE.md` with any existing engagement context.
-2. Use `contextforge task add 'Short goal' --goal 'Specific outcome'` to separate research threads. The first task uses the legacy `.ctx/MISSION.md`; adding a second task creates `.ctx/tasks/TASK_ID/MISSION.md` cards so each target has its own objective. **Fill the new task card**; do not reuse the first target's mission.
+2. Use `contextforge task add 'Short goal' --goal 'Specific outcome'` to separate research threads. The first task uses the legacy `.ctx/MISSION.md`; adding a second task creates `.ctx/tasks/TASK_ID/MISSION.md` and `SCOPE.md` cards so each target has its own objective and engagement context. **Fill both new task cards**; do not reuse the first target's assumptions.
 3. At startup or after compaction, run **one** `contextforge context --budget 1200`. The latest checkpoint now comes before long pinned or historical lists.
 4. If you need only one topic, use `contextforge context --query 'authentication' --budget 900`, `contextforge search 'authentication'`, or inspect the referenced source file.
 5. After a meaningful finding, use `contextforge pin --title 'Critical clue' --body 'Observation, conditions and limits' --status verified --proof 'logs/example.txt:42'`.
@@ -47,7 +47,7 @@ Avoid recording every thought or rerunning `scan`, `audit`, and `rethink` at eve
 
 | Path | Role |
 | --- | --- |
-| `.ctx/MISSION.md` | Legacy/single-task mission and shared project mission |\n| `.ctx/tasks/TASK_ID/MISSION.md` | Independent target mission (multi-task projects) |
+| `.ctx/MISSION.md` | Legacy/single-task mission and shared project mission |\n| `.ctx/tasks/TASK_ID/MISSION.md` | Independent target mission (multi-task projects) |\n| `.ctx/tasks/TASK_ID/SCOPE.md` | Independent target engagement context (multi-task projects) |
 | `.ctx/SCOPE.md` | Existing project/program boundaries |
 | `.ctx/state.json` | Tasks, per-task checkpoints, legacy checkpoint mirror, and bounded file inventory |
 | `.ctx/records.jsonl` | Timestamped evidence/decisions/failures |
