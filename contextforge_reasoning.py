@@ -5,6 +5,7 @@ No LLM API, network access, model setting changes, or automatic promotion.
 from __future__ import annotations
 
 import datetime as dt
+import contextlib
 import difflib
 import json
 import os
@@ -12,6 +13,12 @@ import re
 import tempfile
 import uuid
 from pathlib import Path
+
+try:
+    import fcntl
+except ImportError:
+    fcntl = None
+    import msvcrt
 
 SCHEMA = 1
 MAX_APPROVED = 24
@@ -42,6 +49,34 @@ def utc():
 
 def fail(message):
     raise ValueError(message)
+
+
+@contextlib.contextmanager
+def store_lock():
+    """Serialize global lesson mutations across Codex processes."""
+    directory = home()
+    if directory.is_symlink():
+        fail('Reasoning directory must not be a symlink')
+    directory.mkdir(parents=True, mode=0o700, exist_ok=True)
+    os.chmod(directory, 0o700)
+    lock_path = directory / '.reasoning.lock'
+    if lock_path.is_symlink():
+        fail('Reasoning lock must not be a symlink')
+    fd = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o600)
+    try:
+        if fcntl:
+            fcntl.flock(fd, fcntl.LOCK_EX)
+        else:
+            os.lseek(fd, 0, os.SEEK_SET)
+            msvcrt.locking(fd, msvcrt.LK_LOCK, 1)
+        yield
+    finally:
+        if fcntl:
+            fcntl.flock(fd, fcntl.LOCK_UN)
+        else:
+            os.lseek(fd, 0, os.SEEK_SET)
+            msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
+        os.close(fd)
 
 
 def read_store():
