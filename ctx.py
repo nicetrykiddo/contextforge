@@ -449,8 +449,10 @@ def context_text(root, state, task_id, query, budget):
                      + (f' [links={",".join(r["links"])}]' if r['links'] else ''))
     if len(found) > 16:
         lines.append(f'({len(found)-16} additional records omitted; use ctx.py search.)')
-    lines += [''] + lane_context(root, task_id) + ['']
-    lines += lane_history(root, task_id) + ['']
+    # Experiment history is cold memory: retrieve only when explicitly requested.
+    if re.search(r'\b(lane|experiment|history|attempt|failure|dead.end)\b', query or '', re.I):
+        lines += [''] + lane_context(root, task_id) + ['']
+        lines += lane_history(root, task_id) + ['']
     lines += ['', '## Indexed paths (metadata only; read files selectively)']
     paths = [(k, v) for k, v in state['inventory'].items() if not task or
              any(k == scope or scope == '.' or k.startswith(scope.rstrip('/') + '/') for scope in task['scope'])]
