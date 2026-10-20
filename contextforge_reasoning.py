@@ -15,6 +15,7 @@ from pathlib import Path
 
 SCHEMA = 1
 MAX_APPROVED = 24
+MAX_PROPOSED = 32
 MAX_RENDERED = 3
 PRIVATE_PATTERN = re.compile(
     r'(?:https?://\S+|\b[\w.+-]+@[\w.-]+\.[a-zA-Z]{2,}\b|'
@@ -115,6 +116,8 @@ def get(state, lesson_id):
 
 def propose(args):
     state = read_store()
+    if sum(x['status'] == 'proposed' for x in state['lessons']) >= MAX_PROPOSED:
+        fail('Pending lesson limit (32) reached; review or reject older proposals first')
     principle = sanitize(args.principle, 'principle')
     when = sanitize(args.when, 'when')
     response = sanitize(args.response, 'response')
