@@ -193,6 +193,43 @@ class HardeningTests(unittest.TestCase):
         self.assertNotEqual(p.returncode, 0)
         self.assertIn('symlinked', p.stderr)
 
+    def test_automated_global_lesson_approval_is_not_silent(self):
+        text = self.cli('reasoning', 'propose',
+                        '--principle', 'A tool result alone does not prove task completion',
+                        '--when', 'An accepted operation has no verified downstream outcome',
+                        '--response', 'Verify the downstream result against an independent control').stdout
+        lesson_id = re.search(r'L-[a-f0-9]+', text).group()
+        denied = self.cli('reasoning', 'approve', lesson_id, ok=False)
+        self.assertNotEqual(denied.returncode, 0)
+        self.assertIn('interactive review', denied.stderr)
+        state = json.loads((self.base / 'config/contextforge/reasoning.json').read_text())
+        self.assertEqual(state['lessons'][0]['status'], 'proposed')
+
+    def test_secure_ctx_does_not_chmod_external_hardlinked_files(self):
+        outside = self.base / 'private-hardlink'
+        outside.write_text('PRIVATE')
+        outside.chmod(0o644)
+        os.link(outside, self.project / '.ctx/extra')
+        p = self.cli('upgrade', ok=False)
+        self.assertNotEqual(p.returncode, 0)
+        self.assertEqual(outside.stat().st_mode & 0o777, 0o644)
+
+    def test_hook_install_rejects_symlinked_config(self):
+        home = self.base / 'mock-home'
+        hooks = home / '.codex'
+        hooks.mkdir(parents=True)
+        binary = home / '.local/bin'
+        binary.mkdir(parents=True)
+        (binary / 'contextforge').write_text('mock binary')
+        outside = self.base / 'outside-hooks.json'
+        outside.write_text('{"hooks":{}}')
+        (hooks / 'hooks.json').symlink_to(outside)
+        env = dict(self.env, HOME=str(home))
+        p = subprocess.run([sys.executable, str(CLI), 'hooks', 'install'],
+                           capture_output=True, text=True, env=env, timeout=20)
+        self.assertNotEqual(p.returncode, 0)
+        self.assertEqual(outside.read_text(), '{"hooks":{}}')
+
     def test_new_agents_file_uses_current_task_source(self):
         text = (self.project / 'AGENTS.md').read_text()
         self.assertIn('ACTIVE task', text)
