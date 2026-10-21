@@ -1,6 +1,6 @@
-# ContextForge 3.3.2
+# ContextForge 3.4.0
 
-**Long-session project memory for Codex. Not a model guardrail, policy override, or agent controller.**
+**Long-session project memory and decision continuity for Codex. Not a model guardrail, policy override, or agent controller.**
 
 ContextForge keeps critical working context outside the conversation so CTF, bug bounty, investigation, software, and general projects can continue through compaction and new chats without repeating hours of discovery.
 
@@ -50,17 +50,43 @@ A GitHub URL alone does not install a skill; Codex must have the repository avai
 1. Fill `.ctx/MISSION.md` with the real objective, acceptance test and **path/link to the full original source**. Fill `.ctx/SCOPE.md` with any existing engagement context.
 2. Use `contextforge task add 'Short goal' --goal 'Specific outcome'` to separate research threads. The first task uses the legacy `.ctx/MISSION.md`; adding a second task creates `.ctx/tasks/TASK_ID/MISSION.md` and `SCOPE.md` cards so each target has its own objective and engagement context. **Fill both new task cards**; do not reuse the first target's assumptions.
 3. At startup or after compaction, run **one** `contextforge context --budget 1200`. The latest checkpoint now comes before long pinned or historical lists.
-4. If you need only one topic, use `contextforge context --query 'authentication' --budget 900`, `contextforge search 'authentication'`, or inspect the referenced source file.
-5. After a meaningful finding, use `contextforge pin --title 'Critical clue' --body 'Observation, conditions and limits' --status verified --proof 'logs/example.txt:42'`.
-6. At a meaningful milestone, use `contextforge checkpoint --summary 'Current state' --next 'Precise next action'`. Checkpoints are isolated per active task. Before compaction, `contextforge snapshot`; for chat-switch text, `contextforge handoff --budget 1200`. Handoff **does not scan files automatically**; run `contextforge handoff --refresh` only when you need an updated file inventory.
+4. On a consequential branch, preserve the **reason** for the next action and what would invalidate it. This prevents compaction from restoring a now-pointless plan:
+   `contextforge checkpoint --summary 'Verified observation' --next 'Test alternate mechanism' --why-next 'Distinguishes two explanations' --pivot-if 'Negative control behaves identically'`
+   The last two flags are optional: do not turn routine tasks into paperwork.
+5. If you need only one topic, use `contextforge context --query 'authentication' --budget 900`, `contextforge search 'authentication'`, or inspect the referenced source file.
+6. After a meaningful finding, use `contextforge pin --title 'Critical clue' --body 'Observation, conditions and limits' --status verified --proof 'logs/example.txt:42'`.
+7. At a meaningful milestone, use `contextforge checkpoint --summary 'Current state' --next 'Precise next action'`. Checkpoints are isolated per active task. Before compaction, `contextforge snapshot`; for chat-switch text, `contextforge handoff --budget 1200`. Handoff **does not scan files automatically**; run `contextforge handoff --refresh` only when you need an updated file inventory.
 
 Avoid recording every thought or rerunning `scan`, `audit`, and `rethink` at every chat turn: that just wastes the context you're trying to save. These commands remain available on demand.
+
+## Why the strategy layer is minimal (real rollout audit)
+
+An opt-in inspection of one real, long Codex investigation found **1,439 tool calls
+and 8 compactions** in a JSONL session. ContextForge was invoked repeatedly; the
+agent preserved its broad goal and recorded useful negative evidence. Yet it
+invested in some findings that failed the downstream acceptance/eligibility
+criteria and repeatedly switched candidates without reliably revisiting its
+*selection strategy*. These are case observations, not controlled causal proof
+that ContextForge or compaction caused the wasted work.
+
+The installed skill now keeps a **short, universally applicable decision anchor**:
+success condition, cheapest relevant disqualifier, decisive evidence, why the
+next step helps, and a falsifiable reason to change direction. It applies to
+coding, research, authorized security tests, operations and other multi-step
+projects. No compulsory audit loop, no new engine, no model/tool/safety
+modifications, and no automatic cross-project learning.
+
+**Not yet established:** This improves real-agent task completion, tool budget,
+or reasoning accuracy over unmodified Codex. The external real-model benchmark
+still needs repeated matched trials; see [BENCHMARKS.md](BENCHMARKS.md).
 
 ## Persistent files
 
 | Path | Role |
 | --- | --- |
-| `.ctx/MISSION.md` | Legacy/single-task mission and shared project mission |\n| `.ctx/tasks/TASK_ID/MISSION.md` | Independent target mission (multi-task projects) |\n| `.ctx/tasks/TASK_ID/SCOPE.md` | Independent target engagement context (multi-task projects) |
+| `.ctx/MISSION.md` | Legacy/single-task mission and shared project mission |
+| `.ctx/tasks/TASK_ID/MISSION.md` | Independent target mission (multi-task projects) |
+| `.ctx/tasks/TASK_ID/SCOPE.md` | Independent target engagement context (multi-task projects) |
 | `.ctx/SCOPE.md` | Existing project/program boundaries |
 | `.ctx/state.json` | Tasks, per-task checkpoints, legacy checkpoint mirror, and bounded file inventory |
 | `.ctx/records.jsonl` | Timestamped evidence/decisions/failures |
@@ -110,7 +136,9 @@ including previously rejected entries. It is not a real-model test.
 - No hook can recover unrecorded internal thoughts, guarantee perfect memory, or interrupt an already-running tool/model call.
 - Token budgets approximate 4 characters per token, not the model's exact tokenizer.
 - Hook support varies by Codex version/frontend. Check that lifecycle callbacks actually fire.
-- CLI project reads/writes are serialized via a project lock; global reasoning mutations have a separate lock. Direct Python API calls that bypass the CLI are not guaranteed transactional.\n- `--proof` remains an **attested pointer**, not independent validation. Use optional `--proof-file` to capture an SHA256 digest of a local artifact; `contextforge check` flags later changes. File integrity does not prove an exploit claim.\n- Project memory files use private permissions on initialization/upgrade; check ownership on shared machines.
+- CLI project reads/writes are serialized via a project lock; global reasoning mutations have a separate lock. Direct Python API calls that bypass the CLI are not guaranteed transactional.
+- `--proof` remains an **attested pointer**, not independent validation. Use optional `--proof-file` to capture an SHA256 digest of a local artifact; `contextforge check` flags later changes. File integrity does not prove an exploit claim.
+- Project memory files use private permissions on initialization/upgrade; check ownership on shared machines.
 - A compact handoff is an index into source evidence, **not a substitute for the original files**.
 - Compaction archives now support up to **64 MB of evidence records** per snapshot (8 MB for other individual state files) and retain the latest eight snapshots. Larger ledgers must be archived explicitly; the unbounded JSONL lookup cost remains a known scaling issue. A successful snapshot contains the full current ledger within that limit.
 
