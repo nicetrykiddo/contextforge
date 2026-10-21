@@ -9,7 +9,7 @@ A small, optional working-memory aid, **not** a model policy, task controller, a
 
 ## Startup, fresh session, or after compaction
 
-1. From the active project's root, run **once**: `contextforge context --budget 1200`. Read the active task's mission and scope card (or original briefing) if abbreviated, missing or ambiguous.
+1. From the active project's root, **if `.ctx/state.json` already exists**, run **once**: `contextforge context --budget 1200`. For a new *long-running* project, initialize only when project changes are appropriate and authorized (`contextforge init --mode general`), then anchor `.ctx/MISSION.md` to the real original brief. For one-off tasks, skip memory setup. Read the active task's mission and scope card (or original briefing) if abbreviated, missing or ambiguous.
 2. Reconstruct **what is verified, what is unknown, why the next step is worth doing, and what would change the plan**. A checkpoint is a claim about prior work, not a substitute for checking decisive source evidence.
 3. Retrieve one relevant source or `contextforge context --query 'specific topic' --budget 900` only if needed. Do not automatically rescan the whole tree, regenerate the handoff, or rerun multiple audits.
 4. Continue the actual task, not ContextForge administration. If the saved next step no longer serves the user's win condition, revise it.
