@@ -65,6 +65,17 @@ class DecisionContinuityTests(unittest.TestCase):
         self.assertNotIn('Why this next:', text)
         self.assertNotIn('Reconsider if:', text)
 
+    def test_global_installer_copies_decision_quality_reference(self):
+        repo = Path(__file__).resolve().parents[1]
+        with tempfile.TemporaryDirectory() as home:
+            env = dict(os.environ, HOME=home)
+            p = subprocess.run(['bash', str(repo / 'install.sh')],
+                               capture_output=True, text=True, env=env, timeout=25)
+            self.assertEqual(p.returncode, 0, p.stderr + p.stdout)
+            self.assertTrue((Path(home) / '.agents/skills/contextforge/references/decision-quality.md').is_file())
+            self.assertTrue((Path(home) / '.agents/skills/contextforge/SKILL.md').is_file())
+            self.assertTrue((Path(home) / '.local/bin/contextforge').is_file())
+
     def test_global_skill_stays_optional_and_general(self):
         text = SKILL.read_text()
         self.assertIn('research, debugging, authorized security testing, coding', text)
