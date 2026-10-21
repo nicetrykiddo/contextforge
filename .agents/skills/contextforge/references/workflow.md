@@ -17,7 +17,8 @@ contextforge lane gate --signature 'Execute case A against local parser revision
 contextforge add --kind evidence --status verified --title 'Fixture A outcome' \
   --body 'Local parser returned X' --proof 'Fixture/test/output file path'
 contextforge lane result --id A-ID --outcome progress --observation 'New behavior X' --evidence R-ID
-contextforge checkpoint --summary '...' --next '...'
+contextforge checkpoint --summary 'Verified result' --next 'Discriminating test' \
+  --why-next 'Tests the key assumption' --pivot-if 'Matched control gives the same result'
 contextforge handoff --budget 1500
 ```
 
@@ -25,7 +26,7 @@ Use `contextforge lane history` to see exhausted approaches. To retry the **same
 
 If existing projects contain v1 state: `contextforge upgrade` creates only the missing mission card. Preserve the existing `AGENTS.md`; merge the short contract manually and use the new global CLI rather than an old project-local `ctx.py`.
 
-## What belongs in mission versus records?
+## How to keep strategic context portable\n\nAfter a **consequential choice**, optionally add `--why-next` (evidence connecting the next action to the actual win condition) and `--pivot-if` (observable failure/stop criterion). Both fields survive fresh sessions and compaction; they are not compulsory for routine steps. Avoid updating a checkpoint after every command or rewriting a plan merely for appearances. When two genuine attempts fail for the same reason, reconsider the assumption or selection strategy rather than only switching filenames/targets. If a cheap acceptance criterion can invalidate a candidate, check it before expensive execution.\n\nThe fuller cross-domain diagnostic lives in `decision-quality.md`. Do not load it on every turn.\n\n## What belongs in mission versus records?
 - `MISSION.md`: exact goal, win test, full original source path, hard scope limits, interfaces, suspicious premises and unknowns. Human reviewed. Pinned each handoff.
 - Records: traceable observations, what each test distinguishes, failed assumptions, negative results, decisions, and evidence references. Updated per investigation.
 - The model must inspect full original source when subtleties matter; no lossy summary can guarantee optimal reasoning.

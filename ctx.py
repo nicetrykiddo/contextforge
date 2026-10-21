@@ -27,7 +27,7 @@ except ImportError:
     fcntl = None
     import msvcrt
 
-VERSION = '3.3.2'
+VERSION = '3.4.0'
 STATE_DIR = '.ctx'
 KINDS = ('evidence', 'hypothesis', 'decision', 'failure', 'finding', 'note', 'checkpoint')
 STATUSES = ('verified', 'unverified', 'rejected', 'blocked', 'resolved')
@@ -493,7 +493,10 @@ def checkpoint(args):
     task_id, _ = selection(state, args.task)
     cp = {'at': now(), 'task': task_id, 'summary': args.summary,
           'next': args.next, 'blocker': args.blocker or '',
-          'verified_by': args.verified_by or '', 'last_record': (records(root)[-1]['id'] if records(root) else None)}
+          'verified_by': args.verified_by or '',
+          'why_next': (getattr(args, 'why_next', None) or '').strip(),
+          'pivot_if': (getattr(args, 'pivot_if', None) or '').strip(),
+          'last_record': (records(root)[-1]['id'] if records(root) else None)}
     state.setdefault('checkpoints', {})[task_id or '__project__'] = cp
     state['checkpoint'] = cp  # legacy mirror, not used across tasks
     store(root, state)
@@ -538,7 +541,7 @@ def mission_summary(root, *, max_chars=2300, state=None, task_id=None):
                 'preserving a path to the verbatim source and explicit win/stop conditions.']
     lines = [f'Mission source: {path.relative_to(root)} | SHA256 {hashlib.sha256(raw.encode()).hexdigest()[:16]}']
     if len(raw) > max_chars:
-        lines += ['WARNING: Mission card too large to pin in full; READ .ctx/MISSION.md before attempting.',
+        lines += ['WARNING: Mission card too large to pin in full; READ the referenced mission path before attempting.',
                   f'Full mission card: {len(raw)} characters; first {max_chars} shown:']
     lines.extend(brief(raw[:max_chars], max_chars + 1).splitlines())
     return lines
@@ -574,6 +577,8 @@ def context_text(root, state, task_id, query, budget):
                 f'Mission: {mission_path}',
                 f'State: {brief(cp.get("summary"), 65) if cp else "No checkpoint"}',
                 f'Next: {brief(cp.get("next"), 65) if cp else "Read mission"}']
+        if cp and cp.get('pivot_if'):
+            tiny.append(f'Reconsider if: {brief(cp["pivot_if"], 65)}')
         result = '\n'.join(tiny) + '\n'
         return result[:max(0, max_chars-len(warning))].rstrip() + warning
     core = [
@@ -587,6 +592,8 @@ def context_text(root, state, task_id, query, budget):
     if cp:
         core.extend([f'Checkpoint [{cp["at"]}]: {brief(cp["summary"], 250)}',
                      f'Next: {brief(cp["next"], 210)}',
+                     f'Why this next: {brief(cp.get("why_next"), 160)}' if cp.get("why_next") else '',
+                     f'Reconsider if: {brief(cp.get("pivot_if"), 160)}' if cp.get("pivot_if") else '',
                      f'Blocker: {brief(cp.get("blocker"), 140)}' if cp.get('blocker') else '',
                      f'Verified via: {brief(cp.get("verified_by"), 140)}' if cp.get('verified_by') else ''])
     else:
@@ -811,14 +818,17 @@ def hook(args):
             print(json.dumps({'continue': True, 'systemMessage': message}))
         elif event == 'PostCompact':
             print(json.dumps({'continue': True, 'systemMessage':
-                'ContextForge: reload .ctx/MISSION.md and .ctx/HANDOFF.md, then verify pinned findings. '
-                'A compaction summary is not authoritative.'}))
+                'ContextForge: run contextforge context --budget 1200 ONCE from the project root. '
+                'Use the active task mission, scoped evidence and latest checkpoint (including why-next '
+                'and pivot-if when present); verify the decisive source before continuing. '
+                'Do not trust a stale handoff or assume compaction preserved unrecorded work.'}))
         else:
             print(json.dumps({'hookSpecificOutput': {
                 'hookEventName': 'SessionStart',
-                'additionalContext': 'ContextForge is active in this project. Before acting, '
-                  'read .ctx/MISSION.md and .ctx/HANDOFF.md, check pinned evidence in .ctx/records.jsonl '
-                  'and run contextforge context --budget 1500. Do not assume compaction preserved all clues.'
+                'additionalContext': 'ContextForge is available in this project. If resuming ongoing work, '
+                  'run contextforge context --budget 1200 once from the project root, then consult the '
+                  'ACTIVE TASK mission/source and decisive evidence as needed. Check whether the saved '
+                  'next action still serves the goal. Do not assume compaction preserved unwritten clues.'
             }}))
     except (OSError, ValueError, KeyError, TypeError) as exc:
         # Do not claim preservation if hook failed. Codex may ignore malformed output.
@@ -873,12 +883,12 @@ def rethink(args):
     state = load(root)
     task = state['active_task']
     print(context_text(root, state, task, args.query, args.budget))
-    print('\nRETHINK CHECKLIST (must answer before trying next approach):')
-    print('1. What EXACT win condition and hard constraints come from the original task?')
-    print('2. Which assumptions are verified, which are interpretations, and which are unsupported?')
-    print('3. Which old routes are refuted vs merely unsuccessful? What disproof is still missing?')
-    print('4. What is one DISTINCT mechanism that would differentiate competing explanations?')
-    print('5. What result will force us to stop, and what is the smallest safe discriminating step?')
+    print('\nRETHINK CHECKLIST / OPTIONAL DECISION REVIEW (only when helpful):')
+    print('1. What observable result would meet the user\'s real acceptance criteria?')
+    print('2. Can a cheap prerequisite or exclusion invalidate this route before deeper work?')
+    print('3. What do the controls actually disprove: one candidate, a mechanism, or the strategy?')
+    print('4. Would the next test supply new information, or repeat a premise with a new label?')
+    print('5. What evidence supports continuing deeply, and what would justify pivoting?')
 
 
 def search(args):
@@ -1362,7 +1372,10 @@ def cli():
     x.set_defaults(func=pin)
     x = sp.add_parser('checkpoint', help='Save authoritative progress state')
     x.add_argument('--summary', required=True); x.add_argument('--next', required=True)
-    x.add_argument('--blocker'); x.add_argument('--verified-by'); x.add_argument('--task'); x.set_defaults(func=checkpoint)
+    x.add_argument('--blocker'); x.add_argument('--verified-by'); x.add_argument('--task')
+    x.add_argument('--why-next', help='Brief evidence-based reason the next action serves the goal')
+    x.add_argument('--pivot-if', help='Observable signal that would invalidate this approach')
+    x.set_defaults(func=checkpoint)
     x = sp.add_parser('context', help='Bounded token-ish recovery view')
     x.add_argument('--task'); x.add_argument('--query', default=''); x.add_argument('--budget', type=int, default=1500)
     x.set_defaults(func=context)
