@@ -818,14 +818,17 @@ def hook(args):
             print(json.dumps({'continue': True, 'systemMessage': message}))
         elif event == 'PostCompact':
             print(json.dumps({'continue': True, 'systemMessage':
-                'ContextForge: reload .ctx/MISSION.md and .ctx/HANDOFF.md, then verify pinned findings. '
-                'A compaction summary is not authoritative.'}))
+                'ContextForge: run contextforge context --budget 1200 ONCE from the project root. '
+                'Use the active task mission, scoped evidence and latest checkpoint (including why-next '
+                'and pivot-if when present); verify the decisive source before continuing. '
+                'Do not trust a stale handoff or assume compaction preserved unrecorded work.'}))
         else:
             print(json.dumps({'hookSpecificOutput': {
                 'hookEventName': 'SessionStart',
-                'additionalContext': 'ContextForge is active in this project. Before acting, '
-                  'read .ctx/MISSION.md and .ctx/HANDOFF.md, check pinned evidence in .ctx/records.jsonl '
-                  'and run contextforge context --budget 1500. Do not assume compaction preserved all clues.'
+                'additionalContext': 'ContextForge is available in this project. If resuming ongoing work, '
+                  'run contextforge context --budget 1200 once from the project root, then consult the '
+                  'ACTIVE TASK mission/source and decisive evidence as needed. Check whether the saved '
+                  'next action still serves the goal. Do not assume compaction preserved unwritten clues.'
             }}))
     except (OSError, ValueError, KeyError, TypeError) as exc:
         # Do not claim preservation if hook failed. Codex may ignore malformed output.
