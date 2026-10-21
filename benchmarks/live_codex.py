@@ -156,7 +156,16 @@ def run_trial(outdir, arm, model, seed, timeout, stress_kb):
             duration = round(time.monotonic() - start, 2)
             events = read_events(p.stdout)
             usage, compactions = summarize_events(events)
-            (workspace / f"phase{index+1}.events.jsonl").write_text(p.stdout)
+            # Keep trace outside agent-visible workspace: otherwise a cold
+            # control can recover the deleted diagnostic from its own JSONL!
+            trace_dir = outdir / "traces" / f"{arm}-seed{seed}"
+            trace_dir.mkdir(parents=True, exist_ok=True)
+            trace = trace_dir / f"phase{index+1}.events.jsonl"
+            trace.write_text(p.stdout)
+            try:
+                trace.chmod(0o600)
+            except OSError:
+                pass
             phases.append({"phase": index+1, "exit_code": p.returncode,
                            "wall_seconds": duration,
                            "usage": usage,
