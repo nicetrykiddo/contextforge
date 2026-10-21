@@ -155,6 +155,44 @@ class HardeningTests(unittest.TestCase):
                           '--query', 'xxxxxxxxunknownkeywordxyz').stdout
         self.assertNotIn('IRRELEVANT-TEST-123', output)
 
+    def test_deleted_file_disappears_only_from_own_task_scan(self):
+        for name in ('a', 'b'):
+            folder = self.project / name
+            folder.mkdir()
+            (folder / 'canary.txt').write_text(name)
+        a = self.cli('task', 'add', 'A', '--scope', 'a').stdout.split()[0]
+        self.cli('scan')
+        self.cli('task', 'add', 'B', '--scope', 'b')
+        self.cli('scan')
+        (self.project / 'b/canary.txt').unlink()
+        self.cli('scan')
+        state = json.loads((self.project / '.ctx/state.json').read_text())
+        self.assertIn('a/canary.txt', state['inventory'])
+        self.assertNotIn('b/canary.txt', state['inventory'])
+        self.cli('task', 'focus', a)
+        self.assertIn('a/canary.txt', self.cli('search', 'canary').stdout)
+
+    def test_tampered_scope_cannot_scan_parent_folder(self):
+        external = self.base / 'external'
+        external.mkdir()
+        (external / 'secret-canary.txt').write_text('PRESERVE')
+        state_path = self.project / '.ctx/state.json'
+        state = json.loads(state_path.read_text())
+        state['scopes'] = ['../external']
+        state_path.write_text(json.dumps(state))
+        p = self.cli('scan', ok=False)
+        self.assertNotEqual(p.returncode, 0)
+        self.assertNotIn('secret-canary.txt', p.stdout)
+
+    def test_symlinked_tasks_directory_is_not_scanned_in_snapshot(self):
+        outside = self.base / 'external'
+        outside.mkdir()
+        (outside / 'private.md').write_text('KEEP-PRIVATE')
+        (self.project / '.ctx/tasks').symlink_to(outside, target_is_directory=True)
+        p = self.cli('snapshot', ok=False)
+        self.assertNotEqual(p.returncode, 0)
+        self.assertIn('symlinked', p.stderr)
+
     def test_new_agents_file_uses_current_task_source(self):
         text = (self.project / 'AGENTS.md').read_text()
         self.assertIn('ACTIVE task', text)
