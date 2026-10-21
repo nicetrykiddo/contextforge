@@ -100,6 +100,34 @@ class AdversarialReproductions(unittest.TestCase):
         self.assertTrue(list(outside.glob("*.zip")))
         print("REPRODUCED H6: compaction wrote archive outside root via symlinked directory")
 
+    def test_reproduces_search_including_unrelated_task_private_records(self):
+        self.init()
+        first = self.cmd("task", "add", "Task A", "--goal", "Investigate A").stdout.split()[0]
+        self.cmd("add", "--kind", "note", "--title", "CROSS-TARGET-CANARY-223")
+        second = self.cmd("task", "add", "Task B", "--goal", "Investigate B").stdout.split()[0]
+        self.cmd("task", "focus", second)
+        results = self.cmd("search", "CROSS-TARGET-CANARY").stdout
+        self.assertIn("CROSS-TARGET-CANARY-223", results)
+        self.assertNotEqual(first, second)
+        print("REPRODUCED H8: search defaults to cross-task evidence while context is task-scoped")
+
+    def test_reproduces_installed_agents_md_recommends_stale_shared_recovery(self):
+        self.init()
+        instructions = (self.project / "AGENTS.md").read_text()
+        self.assertIn("read `.ctx/MISSION.md` directly", instructions)
+        self.assertIn("Recover from `.ctx/HANDOFF.md` after compaction", instructions)
+        print("REPRODUCED H9: newly initialized AGENTS.md contradicts active-task hook/skill")
+
+    def test_reproduces_new_task_does_not_focus_and_records_go_to_old_task(self):
+        self.init()
+        first = self.cmd("task", "add", "Task A", "--goal", "Investigate A").stdout.split()[0]
+        second = self.cmd("task", "add", "Task B", "--goal", "Investigate B").stdout.split()[0]
+        self.cmd("add", "--kind", "note", "--title", "MEANT-FOR-NEW-SECOND-TASK")
+        record = json.loads((self.project / ".ctx/records.jsonl").read_text().splitlines()[-1])
+        self.assertEqual(record["task"], first)
+        self.assertNotEqual(record["task"], second)
+        print("REPRODUCED H10: create B leaves A active; implicit record gets attributed to A")
+
     def test_reproduces_automated_global_lesson_approval_without_human_auth(self):
         self.init()
         msg = self.cmd("reasoning", "propose", "--principle",
