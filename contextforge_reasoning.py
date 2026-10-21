@@ -179,6 +179,17 @@ def review(args):
         similar = find_similar({'lessons': [x for x in state['lessons'] if x['id'] != item['id'] and x['status'] == 'approved']}, item['principle'], item['when'])
         if similar:
             fail(f'Near-duplicate of approved {similar["id"]}; retire/merge rather than approve both')
+        # A reviewed lesson must not activate through an unattended agent
+        # subprocess. A TTY makes consent more deliberate, not cryptographic.
+        import sys
+        if not sys.stdin.isatty():
+            fail('Approving global lessons requires interactive review in a terminal')
+        print(f'Principle: {item["principle"]}')
+        print(f'When: {item["when"]}')
+        print(f'Response: {item["response"]}')
+        confirmed = input(f'Type {item["id"]} to activate this global lesson: ').strip()
+        if confirmed != item['id']:
+            fail('Review confirmation did not match lesson ID; unchanged')
     elif args.decision == 'reject' and item['status'] != 'proposed':
         fail('Only proposed lessons may be rejected')
     elif args.decision == 'retire' and item['status'] != 'approved':
