@@ -883,7 +883,7 @@ def rethink(args):
     state = load(root)
     task = state['active_task']
     print(context_text(root, state, task, args.query, args.budget))
-    print('\nOPTIONAL DECISION REVIEW (only when an approach is stalled):')
+    print('\nRETHINK CHECKLIST / OPTIONAL DECISION REVIEW (only when helpful):')
     print('1. What observable result would meet the user\'s real acceptance criteria?')
     print('2. Can a cheap prerequisite or exclusion invalidate this route before deeper work?')
     print('3. What do the controls actually disprove: one candidate, a mechanism, or the strategy?')
