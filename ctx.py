@@ -229,7 +229,12 @@ def secure_ctx(root):
         dirs[:] = [d for d in dirs if not (parent / d).is_symlink()]
         for name in files:
             fp = parent / name
-            if fp.is_file() and not fp.is_symlink():
+            if fp.is_symlink():
+                continue
+            if fp.exists():
+                info = fp.stat()
+                if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1:
+                    die(f'Refusing unsafe managed metadata during permission repair: {fp}')
                 os.chmod(fp, 0o600)
 
 
@@ -911,6 +916,10 @@ def hooks_install(args):
     home = Path.home()
     hookpath = home / '.codex' / 'hooks.json'
     binary = home / '.local' / 'bin' / 'contextforge'
+    if hookpath.is_symlink():
+        die('Refusing symlinked Codex hooks.json; edit the original manually')
+    if hookpath.parent.is_symlink():
+        die('Refusing symlinked Codex hooks directory; review configuration manually')
     if not binary.is_file():
         die(f'Missing {binary}. Run install.sh first.')
     hookpath.parent.mkdir(parents=True, exist_ok=True)
@@ -940,7 +949,7 @@ def hooks_install(args):
         return
     if hookpath.exists():
         import shutil
-        backup = hookpath.with_name('hooks.json.backup-' + dt.datetime.now(dt.timezone.utc).strftime('%Y%m%d%H%M%S'))
+        backup = hookpath.with_name('hooks.json.backup-' + dt.datetime.now(dt.timezone.utc).strftime('%Y%m%d%H%M%S%f'))
         shutil.copy2(hookpath, backup)
         print(f'Existing hooks backed up: {backup}')
     atomic_json(hookpath, config)
