@@ -24,11 +24,13 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - run: python3 -m py_compile benchmarks/offline_recovery.py benchmarks/live_codex.py benchmarks/scale.py
+      - run: python3 -m py_compile benchmarks/offline_recovery.py benchmarks/live_codex.py benchmarks/scale.py benchmarks/hypothesis_pressure.py
       - name: Cold-process recovery and latency benchmark (no model)
         run: python3 benchmarks/offline_recovery.py --noise 48 --replays 12 --output .bench-results/offline.json
       - name: Large ledger scaling (100 to 20,000 records; no model)
         run: python3 benchmarks/scale.py --sizes 100,1000,5000,20000 --trials 7 --output .bench-results/scale.json
+      - name: Hypothesis accumulation and hot-context usefulness (no model)
+        run: python3 benchmarks/hypothesis_pressure.py --sizes 0,10,100,1000,5000 --iterations 7 --output .bench-results/hypothesis.json
       - name: Validate Codex runner dry-run cannot spend model usage
         run: python3 benchmarks/live_codex.py --model gpt-6-sol --seeds 1 --arms cold-plain,cold-forge
       - uses: actions/upload-artifact@v4
@@ -38,4 +40,5 @@ jobs:
           path: |
             .bench-results/offline.json
             .bench-results/scale.json
+            .bench-results/hypothesis.json
           if-no-files-found: warn
