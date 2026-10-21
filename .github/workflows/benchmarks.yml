@@ -35,5 +35,7 @@ jobs:
         if: always()
         with:
           name: offline-memory-python-${{ matrix.python-version }}
-          path: |\n            .bench-results/offline.json\n            .bench-results/scale.json
+          path: |
+            .bench-results/offline.json
+            .bench-results/scale.json
           if-no-files-found: warn
