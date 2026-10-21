@@ -138,6 +138,9 @@ class MemoryIntegrityTests(unittest.TestCase):
         outside.mkdir()
         (outside / 'MISSION.md').write_text('DO NOT ARCHIVE EXTERNAL SECRET')
         target.symlink_to(outside, target_is_directory=True)
+        # New tasks become active; test a legitimate snapshot of A while B
+        # contains a malicious link that should not be archived.
+        self.cmd('task', 'focus', json.loads((self.project / '.ctx/state.json').read_text())['tasks'].keys().__iter__().__next__())
         self.cmd('snapshot')
         archive = sorted((self.project / '.ctx/compactions').glob('*.zip'))[-1]
         with zipfile.ZipFile(archive) as z:
