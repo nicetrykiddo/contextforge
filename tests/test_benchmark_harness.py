@@ -36,6 +36,17 @@ class BenchmarkHarnessTests(unittest.TestCase):
             (directory / "ephemeral_probe.py").unlink()
             self.assertTrue(live.verify(directory, truth)[0])
 
+    def test_resume_uses_exact_thread_and_never_ambient_last(self):
+        baseline = live.codex_invocation('cold-plain', '', 2)
+        self.assertNotIn('resume', baseline)
+        with self.assertRaises(ValueError):
+            live.codex_invocation('resume-forge', '', 2)
+        exact = live.codex_invocation('resume-forge', '', 2,
+                                      thread_id='0199a213-81c0-7800-8aa1-bbab2a035a53')
+        self.assertIn('resume', exact)
+        self.assertNotIn('--last', exact)
+        self.assertIn('0199a213-81c0-7800-8aa1-bbab2a035a53', exact)
+
     def test_native_compaction_is_not_inferred_from_token_use(self):
         events = [
             {"type": "thread.started", "thread_id": "test"},
