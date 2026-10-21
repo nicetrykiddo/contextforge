@@ -35,7 +35,8 @@ class DecisionContinuityTests(unittest.TestCase):
                  '--why-next', 'Can separate two hypotheses under test',
                  '--pivot-if', 'Matched negative control has identical output',
                  '--verified-by', 'fixture.txt:1')
-        self.cli('task', 'add', 'Target B', '--goal', 'Deliver verified result B')
+        second = self.cli('task', 'add', 'Target B', '--goal', 'Deliver verified result B').split()[0]
+        self.cli('task', 'focus', second)
         b_text = self.cli('context', '--budget', '900')
         self.assertNotIn('Matched negative control has identical output', b_text)
         self.cli('task', 'focus', first)
@@ -67,7 +68,7 @@ class DecisionContinuityTests(unittest.TestCase):
     def test_global_skill_stays_optional_and_general(self):
         text = SKILL.read_text()
         self.assertIn('research, debugging, authorized security testing, coding', text)
-        self.assertIn('Why', text)
+        self.assertIn('why the next step', text)
         self.assertIn('not a mandatory checklist', text)
         self.assertIn('Do not change the model', text)
 
