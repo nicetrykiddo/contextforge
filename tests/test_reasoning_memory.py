@@ -1,6 +1,7 @@
 """Cross-project reasoning memory regression tests (offline; no target calls)."""
 import json
 import os
+import pty
 import pathlib
 import subprocess
 import sys
@@ -22,10 +23,27 @@ class GlobalReasoningTests(unittest.TestCase):
         cmd = [sys.executable, str(CLI)]
         if project:
             cmd += ['--root', str(project)]
-        result = subprocess.run(cmd + list(args), env=self.env,
-                                text=True, capture_output=True)
-        self.assertEqual(result.returncode, expected, result.stdout + result.stderr)
-        return result.stdout + result.stderr
+        if tuple(args[:2]) == ('reasoning', 'approve') and expected == 0:
+            # Simulate the documented operator confirmation in a PTY. This
+            # tests the interaction, NOT real-world human identity.
+            master, slave = pty.openpty()
+            try:
+                process = subprocess.Popen(cmd + list(args), env=self.env,
+                                           stdin=slave, text=True,
+                                           stdout=subprocess.PIPE,
+                                           stderr=subprocess.PIPE)
+                os.close(slave)
+                os.write(master, (args[2] + '\\n').encode())
+                stdout, stderr = process.communicate(timeout=15)
+                result_code = process.returncode
+            finally:
+                os.close(master)
+        else:
+            result = subprocess.run(cmd + list(args), env=self.env,
+                                    text=True, capture_output=True)
+            stdout, stderr, result_code = result.stdout, result.stderr, result.returncode
+        self.assertEqual(result_code, expected, stdout + stderr)
+        return stdout + stderr
 
     def propose(self):
         out = self.run_cli('reasoning', 'propose', '--principle',
