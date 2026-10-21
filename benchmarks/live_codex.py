@@ -12,6 +12,7 @@ import json
 import os
 from pathlib import Path
 import random
+import shlex
 import shutil
 import subprocess
 import sys
@@ -139,7 +140,7 @@ def run_trial(outdir, arm, model, seed, timeout, stress_kb):
     bin_dir.mkdir(parents=True, exist_ok=True)
     executable = bin_dir / "contextforge"
     if not executable.exists():
-        executable.write_text('#!/bin/sh\nexec ' + subprocess.list2cmdline([sys.executable, str(ROOT / "ctx.py")]) + ' "$@"\n')
+        executable.write_text('#!/bin/sh\nexec ' + shlex.quote(sys.executable) + ' ' + shlex.quote(str(ROOT / 'ctx.py')) + ' "$@"\n')
         executable.chmod(0o700)
     env["PATH"] = str(bin_dir) + os.pathsep + env.get("PATH", "")
     phases = []
