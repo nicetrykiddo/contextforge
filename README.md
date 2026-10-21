@@ -45,6 +45,23 @@ In a new Codex chat:
 
 A GitHub URL alone does not install a skill; Codex must have the repository available and permission to run the installer.
 
+## Install globally, use from any project
+
+The installer makes `$contextforge` discoverable from
+`~/.agents/skills/contextforge/` and places the CLI in `~/.local/bin`.
+To **update the global skill without creating or modifying project memory**:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/nicetrykiddo/contextforge/main/install.sh | bash
+```
+
+Restart Codex to refresh skill discovery. The skill can be invoked from any
+supported project; it does **not** silently apply to every conversation or
+initialize every directory. Within a particular long-running project,
+run `contextforge init --mode general` once if no `.ctx/` exists, then fill
+the exact mission and applicable scope. Mode names are organizational labels,
+not different model instructions or permission profiles.
+
 ## Efficient long-chat workflow
 
 1. Fill `.ctx/MISSION.md` with the real objective, acceptance test and **path/link to the full original source**. Fill `.ctx/SCOPE.md` with any existing engagement context.
