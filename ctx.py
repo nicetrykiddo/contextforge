@@ -644,7 +644,16 @@ def context_text(root, state, task_id, query, budget):
     remaining = max_chars - len(primary) - len(warning)
     qwords = set(re.findall(r'[a-z0-9_]{3,}', (query or '').lower()))
     candidates = [r for r in effective_records(root)
-                  if not task_id or r.get('task') in (task_id, None)]
+                  if r.get('task') in (task_id, None)]
+    explicit_hypothesis_lookup = bool(re.search(
+        r'\b(hypothes(?:is|es)|speculat(?:ion|ive)|rejected\s+ideas)\b',
+        query or '', re.I))
+    if qwords:
+        candidates = [r for r in candidates
+                      if ((r.get('kind') == 'hypothesis' and explicit_hypothesis_lookup)
+                          or any(w in (r.get('title', '') + ' ' + r.get('body', '') +
+                                       ' ' + ' '.join(r.get('tags', []))).lower()
+                                 for w in qwords))]
     def rank(rec):
         hay = (rec.get('title', '') + ' ' + rec.get('body', '') + ' '
                + ' '.join(rec.get('tags', []))).lower()
@@ -659,9 +668,6 @@ def context_text(root, state, task_id, query, budget):
     unpinned = 0
     speculative = 0
     omitted = 0
-    explicit_hypothesis_lookup = bool(re.search(
-        r'\b(hypothes(?:is|es)|speculat(?:ion|ive)|rejected\s+ideas)\b',
-        query or '', re.I))
     for r in candidates:
         is_pin = 'pinned' in r.get('tags', [])
         is_hypothesis = r.get('kind') == 'hypothesis'
