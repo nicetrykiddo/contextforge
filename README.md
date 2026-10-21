@@ -1,4 +1,4 @@
-# ContextForge 3.3.1
+# ContextForge 3.3.2
 
 **Long-session project memory for Codex. Not a model guardrail, policy override, or agent controller.**
 
@@ -85,6 +85,24 @@ python3 -m unittest discover -s tests -v
 ```
 
 See `.agents/skills/contextforge/references/workflow.md` for more command syntax and `references/field-lessons.md` for optional investigation pitfalls.
+
+## Hypotheses: tentative local context, not a scorecard
+
+Recording another hypothesis is **not progress** and does not train the model.
+Rejected hypotheses are kept in the project evidence history but are no longer
+automatically injected into every hot recovery view. Ordinary `context` loads
+at most two tentative hypotheses; the full audit trail remains available with
+`contextforge context --query hypothesis` and via the original JSONL ledger.
+
+This is a retrieval optimization, **not a rule restricting how the agent reasons,
+tests, or uses its existing safety controls**. The agent can investigate any
+legitimate hypothesis, and no project hypothesis is silently promoted into
+global reasoning memory. We have no evidence that saving more hypotheses
+improves model task-completion rate.
+
+The deterministic [hypothesis-pressure benchmark](benchmarks/hypothesis_pressure.py)
+measures this behavior at 0, 10, 100, 1,000 and 5,000 seeded guesses,
+including previously rejected entries. It is not a real-model test.
 
 ## Important limits
 
