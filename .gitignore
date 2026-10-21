@@ -5,3 +5,7 @@ __pycache__/
 *.log
 *.zip
 .DS_Store
+
+# Private local benchmark traces and models' tool outputs
+.bench-results/
+__pycache__/

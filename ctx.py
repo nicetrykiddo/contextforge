@@ -27,7 +27,7 @@ except ImportError:
     fcntl = None
     import msvcrt
 
-VERSION = '3.3.0'
+VERSION = '3.3.1'
 STATE_DIR = '.ctx'
 KINDS = ('evidence', 'hypothesis', 'decision', 'failure', 'finding', 'note', 'checkpoint')
 STATUSES = ('verified', 'unverified', 'rejected', 'blocked', 'resolved')
@@ -716,8 +716,14 @@ def compaction_snapshot(root, *, event='manual', budget=2200, session=''):
                 for name in allow:
                     fp = ctx / name
                     if fp.is_file() and not fp.is_symlink():
-                        if fp.stat().st_size > 8_000_000:
-                            die(f'{name} exceeds snapshot file size limit (8MB)')
+                        # Real research ledgers can exceed 8MB long before context
+                        # compaction; refusing to snapshot destroys recovery exactly
+                        # when the user needs it most.
+                        max_size = 64_000_000 if name == 'records.jsonl' else 8_000_000
+                        if fp.stat().st_size > max_size:
+                            raise ValueError(
+                                f'{name} exceeds snapshot limit ({max_size} bytes); '
+                                'archive old evidence records before retrying')
                         z.write(fp, arcname=name)
                 for task_card in sorted((ctx / 'tasks').glob('*/*.md')):
                     # Never archive content reached through a symlinked task directory.
@@ -734,6 +740,14 @@ def compaction_snapshot(root, *, event='manual', budget=2200, session=''):
                 }, indent=2))
         os.chmod(tmp, 0o600)
         os.replace(tmp, target)
+        # Retain bounded recovery history instead of silently accumulating
+        # complete ledger archives forever across automated compactions.
+        snapshots = sorted(snap.glob('*.zip'))
+        for old_snapshot in snapshots[:-8]:
+            try:
+                old_snapshot.unlink()
+            except OSError:
+                pass  # successful new snapshot remains authoritative
     finally:
         if os.path.exists(tmp):
             os.unlink(tmp)

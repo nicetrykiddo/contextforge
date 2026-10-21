@@ -1,4 +1,4 @@
-# ContextForge 3.3
+# ContextForge 3.3.1
 
 **Long-session project memory for Codex. Not a model guardrail, policy override, or agent controller.**
 
@@ -13,6 +13,19 @@ ContextForge keeps critical working context outside the conversation so CTF, bug
 The CLI loads the hot layer **before** optional history, including when the token budget is tiny. It warns rather than silently presenting an incomplete summary as complete. More tokens are not always better; the goal is the right evidence, not maximum output.
 
 **ContextForge does not alter LLM safety settings, system instructions, permissions, or tool policies.** It does not decide whether the agent may perform a task. Existing requirements and program rules remain in force. Experiment-lane commands and anti-loop diagnostics are optional recordkeeping, not a compulsory solving protocol.
+
+## Evidence and performance benchmarks
+
+- [Benchmark protocol](BENCHMARKS.md): four-arm real Codex experiments,
+  including matched cold restarts and native session resumes, hidden acceptance
+  tests, JSONL token telemetry, and strict definitions of what counts as compaction.
+- [Measured offline results](benchmarks/RESULTS.md): synthetic memory recovery
+  and CLI latency on Python 3.10/3.12, **not LLM performance**.
+- [Opt-in real-model runner](benchmarks/live_codex.py): intentionally defaults
+  to a zero-cost dry run. No real-model results have been produced in this repo.
+
+**Do not claim the skill increases model task-success rates until actual paired
+model experiments show that improvement over the unmodified Codex baseline.**
 
 ## Install once for a project
 
@@ -81,6 +94,7 @@ See `.agents/skills/contextforge/references/workflow.md` for more command syntax
 - Hook support varies by Codex version/frontend. Check that lifecycle callbacks actually fire.
 - CLI project reads/writes are serialized via a project lock; global reasoning mutations have a separate lock. Direct Python API calls that bypass the CLI are not guaranteed transactional.\n- `--proof` remains an **attested pointer**, not independent validation. Use optional `--proof-file` to capture an SHA256 digest of a local artifact; `contextforge check` flags later changes. File integrity does not prove an exploit claim.\n- Project memory files use private permissions on initialization/upgrade; check ownership on shared machines.
 - A compact handoff is an index into source evidence, **not a substitute for the original files**.
+- Compaction archives now support up to **64 MB of evidence records** per snapshot (8 MB for other individual state files) and retain the latest eight snapshots. Larger ledgers must be archived explicitly; the unbounded JSONL lookup cost remains a known scaling issue. A successful snapshot contains the full current ledger within that limit.
 
 ContextForge makes context recovery reliable **to the extent that important discoveries have been persisted**. It cannot guarantee a CTF solve or detect every misleading lead.
 
