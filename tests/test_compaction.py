@@ -49,6 +49,19 @@ class CompactionTests(unittest.TestCase):
             self.assertIn('Fixture 2 differs', z.read('records.jsonl').decode())
             self.assertTrue(json.loads(z.read('manifest.json'))['checkpoint_stale'])
 
+    def test_snapshot_history_is_bounded(self):
+        for i in range(11):
+            with redirect_stdout(io.StringIO()):
+                ctx.checkpoint(type('A', (), dict(
+                    root=str(self.root), task=None,
+                    summary=f'Synthetic checkpoint {i}',
+                    next='Continue', blocker=None, verified_by='test'))())
+            ctx.compaction_snapshot(self.root)
+        snapshots = sorted((self.root / '.ctx/compactions').glob('*.zip'))
+        self.assertEqual(len(snapshots), 8)
+        with zipfile.ZipFile(snapshots[-1]) as z:
+            self.assertIn('records.jsonl', z.namelist())
+
     def test_hook_does_not_capture_transcript_and_handles_nonproject(self):
         self.pin()
         outside = Path(self.tmp.name) / 'outside'
