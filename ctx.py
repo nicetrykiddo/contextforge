@@ -618,7 +618,7 @@ def context_text(root, state, task_id, query, budget):
     speculative = 0
     omitted = 0
     explicit_hypothesis_lookup = bool(re.search(
-        r'\\b(hypothes(?:is|es)|speculat(?:ion|ive)|rejected\\s+ideas)\\b',
+        r'\b(hypothes(?:is|es)|speculat(?:ion|ive)|rejected\s+ideas)\b',
         query or '', re.I))
     for r in candidates:
         is_pin = 'pinned' in r.get('tags', [])
