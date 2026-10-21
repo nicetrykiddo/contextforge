@@ -19,9 +19,12 @@ ContextForge is a **context system**, not a model policy or execution controller
 - Keep **hot memory** short: exact goal, verified current state, blocker and next action.
 - Keep **warm memory** as source-linked observations, important decisions and negative results; pin only decisive details.
 - Keep **cold memory** as indexed raw files, logs and old experiments; retrieve it on demand. Switching tasks must never mix missions or checkpoints.
+- Hypotheses are optional, tentative local records, not progress metrics. Default recovery shows at most two and hides rejected ones; use `contextforge context --query hypothesis` to review prior alternatives. This does not restrict what Codex may investigate.
 - On meaningful progress, record `contextforge checkpoint --summary '...' --next '...'` and optionally `contextforge pin --title '...' --body '...' --status verified --proof 'path:line'`.
 - Before compaction or a new chat, run `contextforge snapshot` (or `contextforge handoff --budget 1200`). If hooks are enabled, they back up **already recorded** state and can remind Codex to reload it; they cannot save unwritten insights.
-- If a budget drops critical material, open the referenced source rather than pretending the short summary is complete. At tiny budgets the next action and mission path are loaded before mission excerpts.\n- Plain `contextforge handoff` reuses the existing index for speed. Only `handoff --refresh` walks the project tree.\n- `--proof-file` records the hash of a local evidence artifact; `contextforge check` reports changes. A file hash cannot verify the truth of a hypothesis.
+- If a budget drops critical material, open the referenced source rather than pretending the short summary is complete. At tiny budgets the next action and mission path are loaded before mission excerpts.
+- Plain `contextforge handoff` reuses the existing index for speed. Only `handoff --refresh` walks the project tree.
+- `--proof-file` records the hash of a local evidence artifact; `contextforge check` reports changes. A file hash cannot verify the truth of a hypothesis.
 
 ## Optional global reasoning memory
 

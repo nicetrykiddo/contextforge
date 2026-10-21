@@ -54,6 +54,40 @@ state-file limits remain 8 MB. The latest eight archive snapshots are kept.
 This is **not infinite-scale memory**: beyond the cap, archiving/rotation
 needs an explicit design and tests, not promises.
 
+## 2026-10-21: Hypothesis accumulation and relevance
+
+Two GitHub-hosted offline benchmark runs exposed and then verified a context
+retrieval issue. At 10 or more synthetic hypotheses, the old default hot view
+included eight speculative records, three of them **already rejected**.
+Those stale guesses occupied context despite a verified finding being present.
+
+After making rejected hypotheses cold and limiting default hot context to two
+tentative entries, the same scenarios produced:
+
+| Seeded local hypotheses | Old: shown in hot context | Fixed: shown | Fixed: rejected shown |
+| ---: | ---: | ---: | ---: |
+| 0 | 0 | 0 | 0 |
+| 10 | 8 | 2 | 0 |
+| 100 | 8 | 2 | 0 |
+| 1,000 | 8 | 2 | 0 |
+| 5,000 | 8 | 2 | 0 |
+
+Both before and after, the saved next action and targeted verified finding
+remained retrievable, and none of the synthetic hypotheses entered the global
+reasoning store. Following the fix, old rejected entries remained explicitly
+queryable with `context --query hypothesis`.
+
+Python 3.12 median lookup latency rose from ~69 ms for an almost empty ledger
+to ~114 ms at 5,000 hypotheses in the **fixed** run. It still reads the full
+ledger; lowering emitted context does **not** eliminate growth in storage or CPU.
+
+- [Baseline observation](https://github.com/nicetrykiddo/contextforge/actions/runs/39608057560)
+- [Fix validated (Python 3.10 and 3.12)](https://github.com/nicetrykiddo/contextforge/actions/runs/39608648219)
+
+**Interpretation:** This confirms reduced prompt clutter from speculative
+records in an offline fixture. It does **not** prove improved agent decisions,
+faster CTF solutions, LLM learning, or native automatic compaction survival.
+
 ### Real model evaluation
 
 | Model | Resumed baseline success | Resumed ContextForge | Cold baseline success | Cold ContextForge | Compaction confirmed | Agent token overhead |
