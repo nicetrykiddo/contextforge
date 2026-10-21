@@ -27,7 +27,7 @@ except ImportError:
     fcntl = None
     import msvcrt
 
-VERSION = '3.3.2'
+VERSION = '3.4.0'
 STATE_DIR = '.ctx'
 KINDS = ('evidence', 'hypothesis', 'decision', 'failure', 'finding', 'note', 'checkpoint')
 STATUSES = ('verified', 'unverified', 'rejected', 'blocked', 'resolved')
@@ -493,7 +493,10 @@ def checkpoint(args):
     task_id, _ = selection(state, args.task)
     cp = {'at': now(), 'task': task_id, 'summary': args.summary,
           'next': args.next, 'blocker': args.blocker or '',
-          'verified_by': args.verified_by or '', 'last_record': (records(root)[-1]['id'] if records(root) else None)}
+          'verified_by': args.verified_by or '',
+          'why_next': (getattr(args, 'why_next', None) or '').strip(),
+          'pivot_if': (getattr(args, 'pivot_if', None) or '').strip(),
+          'last_record': (records(root)[-1]['id'] if records(root) else None)}
     state.setdefault('checkpoints', {})[task_id or '__project__'] = cp
     state['checkpoint'] = cp  # legacy mirror, not used across tasks
     store(root, state)
@@ -538,7 +541,7 @@ def mission_summary(root, *, max_chars=2300, state=None, task_id=None):
                 'preserving a path to the verbatim source and explicit win/stop conditions.']
     lines = [f'Mission source: {path.relative_to(root)} | SHA256 {hashlib.sha256(raw.encode()).hexdigest()[:16]}']
     if len(raw) > max_chars:
-        lines += ['WARNING: Mission card too large to pin in full; READ .ctx/MISSION.md before attempting.',
+        lines += ['WARNING: Mission card too large to pin in full; READ the referenced mission path before attempting.',
                   f'Full mission card: {len(raw)} characters; first {max_chars} shown:']
     lines.extend(brief(raw[:max_chars], max_chars + 1).splitlines())
     return lines
@@ -574,6 +577,8 @@ def context_text(root, state, task_id, query, budget):
                 f'Mission: {mission_path}',
                 f'State: {brief(cp.get("summary"), 65) if cp else "No checkpoint"}',
                 f'Next: {brief(cp.get("next"), 65) if cp else "Read mission"}']
+        if cp and cp.get('pivot_if'):
+            tiny.append(f'Reconsider if: {brief(cp["pivot_if"], 65)}')
         result = '\n'.join(tiny) + '\n'
         return result[:max(0, max_chars-len(warning))].rstrip() + warning
     core = [
@@ -587,6 +592,8 @@ def context_text(root, state, task_id, query, budget):
     if cp:
         core.extend([f'Checkpoint [{cp["at"]}]: {brief(cp["summary"], 250)}',
                      f'Next: {brief(cp["next"], 210)}',
+                     f'Why this next: {brief(cp.get("why_next"), 160)}' if cp.get("why_next") else '',
+                     f'Reconsider if: {brief(cp.get("pivot_if"), 160)}' if cp.get("pivot_if") else '',
                      f'Blocker: {brief(cp.get("blocker"), 140)}' if cp.get('blocker') else '',
                      f'Verified via: {brief(cp.get("verified_by"), 140)}' if cp.get('verified_by') else ''])
     else:
@@ -1362,7 +1369,10 @@ def cli():
     x.set_defaults(func=pin)
     x = sp.add_parser('checkpoint', help='Save authoritative progress state')
     x.add_argument('--summary', required=True); x.add_argument('--next', required=True)
-    x.add_argument('--blocker'); x.add_argument('--verified-by'); x.add_argument('--task'); x.set_defaults(func=checkpoint)
+    x.add_argument('--blocker'); x.add_argument('--verified-by'); x.add_argument('--task')
+    x.add_argument('--why-next', help='Brief evidence-based reason the next action serves the goal')
+    x.add_argument('--pivot-if', help='Observable signal that would invalidate this approach')
+    x.set_defaults(func=checkpoint)
     x = sp.add_parser('context', help='Bounded token-ish recovery view')
     x.add_argument('--task'); x.add_argument('--query', default=''); x.add_argument('--budget', type=int, default=1500)
     x.set_defaults(func=context)
