@@ -159,6 +159,15 @@ def run_trial(outdir, arm, model, seed, timeout, stress_kb, keep_workspace=False
             duration = round(time.monotonic() - start, 2)
             events = read_events(p.stdout)
             usage, compactions = summarize_events(events)
+            command_text = [
+                str((event.get("item") or {}).get("command", ""))
+                for event in events if isinstance(event.get("item"), dict)
+                and event.get("type") in ("item.completed", "item.started")
+            ]
+            contextforge_calls = sum("contextforge" in command.lower()
+                                     for command in command_text)
+            probe_calls = sum("ephemeral_probe.py" in command
+                              for command in command_text)
             # Keep trace outside agent-visible workspace: otherwise a cold
             # control can recover the deleted diagnostic from its own JSONL!
             trace_dir = outdir / "traces" / f"{arm}-seed{seed}"
@@ -172,6 +181,8 @@ def run_trial(outdir, arm, model, seed, timeout, stress_kb, keep_workspace=False
             phases.append({"phase": index+1, "exit_code": p.returncode,
                            "wall_seconds": duration,
                            "usage": usage,
+                           "contextforge_cli_events": contextforge_calls,
+                           "probe_command_events": probe_calls,
                            "native_compaction_events": compactions,
                            "event_count": len(events),
                            "stderr_tail": p.stderr[-300:] if p.returncode else ""})
@@ -188,6 +199,13 @@ def run_trial(outdir, arm, model, seed, timeout, stress_kb, keep_workspace=False
             x.get("exit_code") == 0 for x in phases),
         "hidden_grader_pass": ok,
         "grader_error": grader_error if not ok else "",
+        "contextforge_cli_events_total": sum(
+            x.get("contextforge_cli_events", 0) for x in phases),
+        "phase1_probe_command_observed": bool(
+            phases and phases[0].get("probe_command_events", 0)),
+        "durable_local_records": (
+            len((workspace / ".ctx" / "records.jsonl").read_text().splitlines())
+            if (workspace / ".ctx" / "records.jsonl").exists() else None),
         "native_compaction_observed": any(x.get("native_compaction_events") for x in phases),
         "token_totals": {key: sum(x.get("usage", {}).get(key, 0) for x in phases)
                          for key in ("input_tokens", "cached_input_tokens",
