@@ -18,7 +18,7 @@ import ctx  # noqa: E402
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--sizes", default="100,1000,5000")
+    ap.add_argument("--sizes", default="100,1000,5000,20000")
     ap.add_argument("--trials", type=int, default=7)
     ap.add_argument("--output", default="")
     options = ap.parse_args()
@@ -86,7 +86,19 @@ def main():
                               "Inspect raven observation" in p.stdout)
                 bounded &= len(p.stdout) <= 1401
             measurements.sort()
+            start_snap = time.perf_counter()
+            snapshot_succeeded = True
+            snapshot_error = ""
+            try:
+                ctx.compaction_snapshot(root, event="benchmark", budget=350)
+            except (SystemExit, OSError, ValueError) as exc:
+                snapshot_succeeded = False
+                snapshot_error = str(exc)
+            snapshot_ms = round((time.perf_counter()-start_snap)*1000, 2)
             results.append({
+                "snapshot_succeeded": snapshot_succeeded,
+                "snapshot_latency_ms": snapshot_ms,
+                "snapshot_error": snapshot_error,
                 "records": size + 1,
                 "ledger_bytes": (root / ".ctx/records.jsonl").stat().st_size,
                 "context_output_in_budget": bounded,
@@ -101,7 +113,8 @@ def main():
         "git_commit": os.getenv("GITHUB_SHA", "local"),
         "results": results,
         "pass": all(x["context_output_in_budget"] and
-                    x["old_query_relevant_finding_recovered"] for x in results),
+                    x["old_query_relevant_finding_recovered"] and
+                    x["snapshot_succeeded"] for x in results),
         "limitations": [
             "Synthetic JSONL evidence only. One writer. No LLM/compaction.",
             "CLI durations include process startup and vary across hosted runners.",
