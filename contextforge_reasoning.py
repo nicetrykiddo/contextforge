@@ -168,6 +168,28 @@ def propose(args):
     print(f'PROPOSED {item["id"]}. Not globally active until explicitly approved.')
 
 
+def review_digest(item):
+    import hashlib
+    fields = {key: item[key] for key in ('id', 'principle', 'when', 'response', 'tags')}
+    return hashlib.sha256(json.dumps(fields, sort_keys=True).encode()).hexdigest()
+
+
+def confirm_review(args):
+    """Deliberate local operator step, never proof of human identity."""
+    import sys
+    if not sys.stdin.isatty():
+        fail('Approving global lessons requires interactive review in a terminal')
+    item = get(read_store(), args.id)
+    if item['status'] != 'proposed':
+        fail('Only proposed lessons can be approved')
+    print(f'Principle: {item["principle"]}')
+    print(f'When: {item["when"]}')
+    print(f'Response: {item["response"]}')
+    if input(f'Type {item["id"]} to activate this global lesson: ').strip() != item['id']:
+        fail('Review confirmation did not match; lesson unchanged')
+    args.review_digest = review_digest(item)
+
+
 def review(args):
     state = read_store()
     item = get(state, args.id)
@@ -179,17 +201,10 @@ def review(args):
         similar = find_similar({'lessons': [x for x in state['lessons'] if x['id'] != item['id'] and x['status'] == 'approved']}, item['principle'], item['when'])
         if similar:
             fail(f'Near-duplicate of approved {similar["id"]}; retire/merge rather than approve both')
-        # A reviewed lesson must not activate through an unattended agent
-        # subprocess. A TTY makes consent more deliberate, not cryptographic.
-        import sys
-        if not sys.stdin.isatty():
-            fail('Approving global lessons requires interactive review in a terminal')
-        print(f'Principle: {item["principle"]}')
-        print(f'When: {item["when"]}')
-        print(f'Response: {item["response"]}')
-        confirmed = input(f'Type {item["id"]} to activate this global lesson: ').strip()
-        if confirmed != item['id']:
-            fail('Review confirmation did not match lesson ID; unchanged')
+        # CLI confirmation happens BEFORE taking the global lock, and is
+        # bound to these exact lesson bytes to avoid a review/mutation race.
+        if getattr(args, 'review_digest', None) != review_digest(item):
+            fail('Approval needs interactive review of the current lesson text')
     elif args.decision == 'reject' and item['status'] != 'proposed':
         fail('Only proposed lessons may be rejected')
     elif args.decision == 'retire' and item['status'] != 'approved':
