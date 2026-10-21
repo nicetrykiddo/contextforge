@@ -14,6 +14,7 @@ import json
 import io
 import zipfile
 import shlex
+import stat
 import os
 import re
 import sys
@@ -73,6 +74,12 @@ def ctx_member(root, *parts):
         current = current / component
         if current.is_symlink():
             die(f'Refusing symlinked ContextForge metadata: {current}')
+        if current.exists() and not current.is_dir():
+            mode = current.stat()
+            if not stat.S_ISREG(mode.st_mode):
+                die(f'Refusing non-regular ContextForge metadata: {current}')
+            if mode.st_nlink != 1:
+                die(f'Refusing hardlinked ContextForge metadata: {current}')
     return target
 
 
