@@ -931,11 +931,22 @@ def search(args):
     root = root_from(args)
     state = load(root)
     query = args.query.lower()
-    rs = [r for r in effective_records(root) if query in ' '.join([r.get('title',''), r.get('body',''), r.get('path') or '', ','.join(r.get('tags', []))]).lower()]
-    rs.sort(key=lambda r: (score(r, state['active_task'], query), r['at']), reverse=True)
+    task_id = args.task or (None if args.all_tasks else state.get('active_task'))
+    if args.task:
+        selection(state, args.task)
+    rs = [r for r in effective_records(root)
+          if (args.all_tasks or r.get('task') in (task_id, None))
+          and query in ' '.join([r.get('title',''), r.get('body',''),
+                                 r.get('path') or '', ','.join(r.get('tags', []))]).lower()]
+    rs.sort(key=lambda r: (score(r, task_id, query), r['at']), reverse=True)
     for r in rs[:args.limit]:
         print(f'{r["id"]} {r["kind"]}/{r["status"]} {r["title"]}')
-    inventory = [p for p in state['inventory'] if query in p.lower()]
+    task = state['tasks'].get(task_id) if task_id else None
+    scopes = task['scope'] if task and not args.all_tasks else state['scopes']
+    inventory = [p for p in state['inventory']
+                 if query in p.lower() and (args.all_tasks or
+                    any(scope == '.' or p == scope or p.startswith(scope.rstrip('/') + '/')
+                        for scope in scopes))]
     for p in inventory[:args.limit]:
         print(f'FILE {p}')
     print(f'Found {len(rs)} records, {len(inventory)} files')
@@ -1429,7 +1440,11 @@ def cli():
     x.add_argument('--refresh', action='store_true', help='Explicitly refresh inventory before handoff')
     x.add_argument('--no-refresh', action='store_true', help='Deprecated no-op; refresh is opt-in')
     x.set_defaults(func=handoff)
-    x = sp.add_parser('search'); x.add_argument('query'); x.add_argument('--limit', type=int, default=25); x.set_defaults(func=search)
+    x = sp.add_parser('search'); x.add_argument('query')
+    x.add_argument('--limit', type=int, default=25)
+    x.add_argument('--task', help='Search an explicit task')
+    x.add_argument('--all-tasks', action='store_true', help='Explicitly search other tasks')
+    x.set_defaults(func=search)
     x = sp.add_parser('graph'); x.add_argument('--dot', action='store_true'); x.set_defaults(func=graph)
     x = sp.add_parser('check'); x.set_defaults(func=check)
     x = sp.add_parser('status'); x.set_defaults(func=status)
