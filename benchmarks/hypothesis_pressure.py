@@ -99,7 +99,7 @@ def main():
             if history.returncode:
                 raise RuntimeError(history.stderr)
             rejected_history = len(re.findall(
-                r"(?m)^- R-spec-\\d+ hypothesis/rejected", history.stdout))
+                r"(?m)^- R-spec-\d+ hypothesis/rejected", history.stdout))
             records = len((project / ".ctx/records.jsonl").read_text().splitlines())
             entries = re.findall(r"(?m)^- R-spec-\d+ hypothesis/(?:unverified|rejected)", output)
             rejected = len(re.findall(r"(?m)^- R-spec-\d+ hypothesis/rejected", output))
