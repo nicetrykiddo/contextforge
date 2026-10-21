@@ -128,6 +128,24 @@ class AdversarialReproductions(unittest.TestCase):
         self.assertNotEqual(record["task"], second)
         print("REPRODUCED H10: create B leaves A active; implicit record gets attributed to A")
 
+    def test_reproduces_active_task_scan_drops_other_task_inventory(self):
+        self.init()
+        (self.project / "a").mkdir()
+        (self.project / "b").mkdir()
+        (self.project / "a" / "a-evidence.txt").write_text("A")
+        (self.project / "b" / "b-evidence.txt").write_text("B")
+        first = self.cmd("task", "add", "Task A", "--goal", "Preserve A", "--scope", "a").stdout.split()[0]
+        self.cmd("scan")
+        state = json.loads((self.project / ".ctx/state.json").read_text())
+        self.assertIn("a/a-evidence.txt", state["inventory"])
+        second = self.cmd("task", "add", "Task B", "--goal", "Preserve B", "--scope", "b").stdout.split()[0]
+        self.cmd("task", "focus", second)
+        self.cmd("scan")
+        state = json.loads((self.project / ".ctx/state.json").read_text())
+        self.assertNotIn("a/a-evidence.txt", state["inventory"])
+        self.assertIn("b/b-evidence.txt", state["inventory"])
+        print("REPRODUCED H11: default scan of B silently erases A entries in shared file inventory")
+
     def test_reproduces_automated_global_lesson_approval_without_human_auth(self):
         self.init()
         msg = self.cmd("reasoning", "propose", "--principle",
