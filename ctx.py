@@ -880,12 +880,12 @@ def rethink(args):
     state = load(root)
     task = state['active_task']
     print(context_text(root, state, task, args.query, args.budget))
-    print('\nRETHINK CHECKLIST (must answer before trying next approach):')
-    print('1. What EXACT win condition and hard constraints come from the original task?')
-    print('2. Which assumptions are verified, which are interpretations, and which are unsupported?')
-    print('3. Which old routes are refuted vs merely unsuccessful? What disproof is still missing?')
-    print('4. What is one DISTINCT mechanism that would differentiate competing explanations?')
-    print('5. What result will force us to stop, and what is the smallest safe discriminating step?')
+    print('\nOPTIONAL DECISION REVIEW (only when an approach is stalled):')
+    print('1. What observable result would meet the user\'s real acceptance criteria?')
+    print('2. Can a cheap prerequisite or exclusion invalidate this route before deeper work?')
+    print('3. What do the controls actually disprove: one candidate, a mechanism, or the strategy?')
+    print('4. Would the next test supply new information, or repeat a premise with a new label?')
+    print('5. What evidence supports continuing deeply, and what would justify pivoting?')
 
 
 def search(args):
