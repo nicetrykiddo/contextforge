@@ -27,8 +27,8 @@ jobs:
       - run: python3 -m py_compile benchmarks/offline_recovery.py benchmarks/live_codex.py benchmarks/scale.py
       - name: Cold-process recovery and latency benchmark (no model)
         run: python3 benchmarks/offline_recovery.py --noise 48 --replays 12 --output .bench-results/offline.json
-      - name: Large ledger scaling (100 / 1,000 / 5,000 records; no model)
-        run: python3 benchmarks/scale.py --sizes 100,1000,5000 --trials 7 --output .bench-results/scale.json
+      - name: Large ledger scaling (100 to 20,000 records; no model)
+        run: python3 benchmarks/scale.py --sizes 100,1000,5000,20000 --trials 7 --output .bench-results/scale.json
       - name: Validate Codex runner dry-run cannot spend model usage
         run: python3 benchmarks/live_codex.py --model gpt-6-sol --seeds 1 --arms cold-plain,cold-forge
       - uses: actions/upload-artifact@v4
