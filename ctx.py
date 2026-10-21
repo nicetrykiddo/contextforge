@@ -121,6 +121,10 @@ def load(root):
         state = json.loads(state_path.read_text(encoding='utf-8'))
     except (ValueError, OSError) as exc:
         die(f'Unreadable state: {exc}')
+    if not isinstance(state, dict):
+        die('Malformed state: expected an object')
+    if not isinstance(state.get('tasks'), dict) or not isinstance(state.get('scopes'), list):
+        die('Malformed state: tasks and scopes must have their expected types')
     if state.get('schema') != 1:
         die('Unsupported state schema')
     return state
@@ -382,6 +386,8 @@ def should_exclude(path, patterns):
 
 
 def inventory_walk(root, scope, state):
+    # Persisted task scopes may be edited; never scan outside the project.
+    scope = safe_relative(root, scope)
     directory = root / scope
     if not directory.exists():
         return {}, [f'Missing scope: {scope}'], False
@@ -434,9 +440,23 @@ def scan(args):
     deleted = sorted(set(old) - set(inventory)) if not args.task else []
     modified = sorted(k for k in inventory.keys() & old.keys() if inventory[k] != old[k])
     if task or args.task:
-        # Default scans are task-scoped; only an explicit global scan may
-        # replace the entire inventory and infer unrelated deletions.
-        deleted = []
+        # A task scan may remove its own stale paths, never other tasks'
+        # evidence. An incomplete scan cannot establish file deletion.
+        current_scopes = task['scope'] if task else state['scopes']
+        tid = args.task or state.get('active_task')
+        other_scopes = [scope for other_id, other in state['tasks'].items()
+                        if other_id != tid for scope in other['scope']]
+        def belongs(path, scopes):
+            return any(scope == '.' or path == scope or
+                       path.startswith(scope.rstrip('/') + '/') for scope in scopes)
+        if not truncated:
+            deleted = sorted(path for path in old if path not in inventory
+                             and belongs(path, current_scopes)
+                             and not belongs(path, other_scopes))
+            for path in deleted:
+                state['inventory'].pop(path, None)
+        else:
+            deleted = []
         state['inventory'].update(inventory)
     else:
         state['inventory'] = inventory
@@ -798,7 +818,8 @@ def compaction_snapshot(root, *, event='manual', budget=2200, session=''):
                                 f'{name} exceeds snapshot limit ({max_size} bytes); '
                                 'archive old evidence records before retrying')
                         z.write(fp, arcname=name)
-                for task_card in sorted((ctx / 'tasks').glob('*/*.md')):
+                task_dir = ctx_member(root, 'tasks')
+                for task_card in sorted(task_dir.glob('*/*.md')):
                     # Never archive content reached through a symlinked task directory.
                     if (task_card.is_file() and not task_card.is_symlink()
                             and task_card.resolve().is_relative_to(ctx.resolve())
