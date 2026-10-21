@@ -65,6 +65,23 @@ class DecisionContinuityTests(unittest.TestCase):
         self.assertNotIn('Why this next:', text)
         self.assertNotIn('Reconsider if:', text)
 
+    def test_lifecycle_hooks_recover_active_task_not_shared_stale_handoff(self):
+        self.cli('init', '--mode', 'general')
+        self.cli('task', 'add', 'First', '--goal', 'First outcome')
+        second = self.cli('task', 'add', 'Second', '--goal', 'Second outcome').split()[0]
+        self.cli('task', 'focus', second)
+        for event in ('SessionStart', 'PostCompact'):
+            payload = json.dumps({'hook_event_name': event,
+                                  'cwd': str(self.root), 'session_id': 'fixture'})
+            p = subprocess.run([sys.executable, str(CLI), 'hook'], input=payload,
+                               capture_output=True, text=True, env=self.env, timeout=20)
+            self.assertEqual(p.returncode, 0, p.stderr)
+            response = json.loads(p.stdout)
+            raw = json.dumps(response)
+            self.assertIn('contextforge context --budget 1200', raw)
+            self.assertNotIn('read .ctx/MISSION.md and .ctx/HANDOFF.md', raw)
+            self.assertIn('active task', raw.lower())
+
     def test_rethink_is_optional_and_outcome_focused(self):
         self.cli('init', '--mode', 'general')
         self.cli('task', 'add', 'Open question', '--goal', 'Deliver evidence-backed answer')
