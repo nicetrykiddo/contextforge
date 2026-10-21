@@ -825,6 +825,10 @@ def compaction_snapshot(root, *, event='manual', budget=2200, session=''):
                         z.write(fp, arcname=name)
                 task_dir = ctx_member(root, 'tasks')
                 for task_card in sorted(task_dir.glob('*/*.md')):
+                    # Only curated mission/scope cards belong in recovery
+                    # archives; arbitrary notes may contain unrelated secrets.
+                    if task_card.name not in ('MISSION.md', 'SCOPE.md'):
+                        continue
                     # Never archive content reached through a symlinked task directory.
                     if (task_card.is_file() and not task_card.is_symlink()
                             and task_card.resolve().is_relative_to(ctx.resolve())
