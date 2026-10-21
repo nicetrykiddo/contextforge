@@ -65,6 +65,15 @@ class DecisionContinuityTests(unittest.TestCase):
         self.assertNotIn('Why this next:', text)
         self.assertNotIn('Reconsider if:', text)
 
+    def test_rethink_is_optional_and_outcome_focused(self):
+        self.cli('init', '--mode', 'general')
+        self.cli('task', 'add', 'Open question', '--goal', 'Deliver evidence-backed answer')
+        output = self.cli('rethink', '--budget', '900')
+        self.assertIn('OPTIONAL DECISION REVIEW', output)
+        self.assertIn('acceptance criteria', output)
+        self.assertIn('repeat a premise', output)
+        self.assertNotIn('must answer before trying', output)
+
     def test_global_installer_copies_decision_quality_reference(self):
         repo = Path(__file__).resolve().parents[1]
         with tempfile.TemporaryDirectory() as home:
