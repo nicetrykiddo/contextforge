@@ -10,6 +10,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import zipfile
 
 CLI = Path(__file__).resolve().parents[1] / 'ctx.py'
 
@@ -192,6 +193,19 @@ class HardeningTests(unittest.TestCase):
         p = self.cli('snapshot', ok=False)
         self.assertNotEqual(p.returncode, 0)
         self.assertIn('symlinked', p.stderr)
+
+    def test_snapshot_does_not_collect_unrelated_task_markdown(self):
+        tid = self.cli('task', 'add', 'A').stdout.split()[0]
+        # One-task project stores mission in shared card; add second to force
+        # dedicated task cards and verify arbitrary markdown is omitted.
+        self.cli('task', 'add', 'B')
+        private = self.project / '.ctx/tasks' / tid / 'private-notes.md'
+        private.write_text('DO-NOT-ARCHIVE-PRIVATE-NOTES')
+        self.cli('snapshot')
+        archive = sorted((self.project / '.ctx/compactions').glob('*.zip'))[-1]
+        with zipfile.ZipFile(archive) as z:
+            self.assertNotIn(f'tasks/{tid}/private-notes.md', z.namelist())
+            self.assertIn(f'tasks/{tid}/MISSION.md', z.namelist())
 
     def test_automated_global_lesson_approval_is_not_silent(self):
         text = self.cli('reasoning', 'propose',
