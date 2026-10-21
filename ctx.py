@@ -1517,6 +1517,10 @@ def cli():
         die('Budget must be 100–100000 estimated tokens')
     try:
         if args.command == 'reasoning':
+            if getattr(args, 'reasoning_action', '') == 'approve':
+                # Never hold the global file lock while someone reviews a
+                # lesson: an idle terminal must not freeze other agents.
+                global_reasoning.confirm_review(args)
             with global_reasoning.store_lock():
                 args.func(args)
         elif args.command in ('hook', 'hooks'):
