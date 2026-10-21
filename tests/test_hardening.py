@@ -84,6 +84,26 @@ class HardeningTests(unittest.TestCase):
         p = self.cli('context', ok=False)
         self.assertNotEqual(p.returncode, 0)
 
+    def test_hardlinked_record_file_cannot_modify_unrelated_file(self):
+        records = self.project / '.ctx/records.jsonl'
+        records.unlink()
+        outside = self.base / 'external-hardlink'
+        outside.write_text('EXTERNAL-CANARY')
+        os.link(outside, records)
+        p = self.cli('add', '--kind', 'note', '--title', 'should not append', ok=False)
+        self.assertNotEqual(p.returncode, 0)
+        self.assertEqual(outside.read_text(), 'EXTERNAL-CANARY')
+
+    def test_nonregular_records_file_is_refused(self):
+        if not hasattr(os, 'mkfifo'):
+            self.skipTest('requires POSIX FIFOs')
+        records = self.project / '.ctx/records.jsonl'
+        records.unlink()
+        os.mkfifo(records)
+        p = self.cli('context', ok=False)
+        self.assertNotEqual(p.returncode, 0)
+        self.assertIn('non-regular', p.stderr)
+
     def test_focused_task_search_does_not_cross_tasks(self):
         a = self.cli('task', 'add', 'A', '--goal', 'A').stdout.split()[0]
         self.cli('add', '--kind', 'note', '--title', 'TASK-A-CANARY-111')
