@@ -1,4 +1,4 @@
-# ContextForge 3.4.0
+# ContextForge 3.4.1
 
 **Long-session project memory and decision continuity for Codex. Not a model guardrail, policy override, or agent controller.**
 
@@ -65,7 +65,7 @@ not different model instructions or permission profiles.
 ## Efficient long-chat workflow
 
 1. Fill `.ctx/MISSION.md` with the real objective, acceptance test and **path/link to the full original source**. Fill `.ctx/SCOPE.md` with any existing engagement context.
-2. Use `contextforge task add 'Short goal' --goal 'Specific outcome'` to separate research threads. The first task uses the legacy `.ctx/MISSION.md`; adding a second task creates `.ctx/tasks/TASK_ID/MISSION.md` and `SCOPE.md` cards so each target has its own objective and engagement context. **Fill both new task cards**; do not reuse the first target's assumptions.
+2. Use `contextforge task add 'Short goal' --goal 'Specific outcome'` to separate research threads. **The new task becomes active immediately**, so subsequent unqualified evidence belongs to it; use `task focus TASK_ID` to switch back. The first task uses the legacy `.ctx/MISSION.md`; adding a second task creates independent mission/scope cards. Fill the new task cards rather than reusing another task's assumptions.
 3. At startup or after compaction, run **one** `contextforge context --budget 1200`. The latest checkpoint now comes before long pinned or historical lists.
 4. On a consequential branch, preserve the **reason** for the next action and what would invalidate it. This prevents compaction from restoring a now-pointless plan:
    `contextforge checkpoint --summary 'Verified observation' --next 'Test alternate mechanism' --why-next 'Distinguishes two explanations' --pivot-if 'Negative control behaves identically'`
@@ -105,7 +105,7 @@ still needs repeated matched trials; see [BENCHMARKS.md](BENCHMARKS.md).
 | `.ctx/tasks/TASK_ID/MISSION.md` | Independent target mission (multi-task projects) |
 | `.ctx/tasks/TASK_ID/SCOPE.md` | Independent target engagement context (multi-task projects) |
 | `.ctx/SCOPE.md` | Existing project/program boundaries |
-| `.ctx/state.json` | Tasks, per-task checkpoints, legacy checkpoint mirror, and bounded file inventory |
+| `.ctx/state.json` | Tasks, per-task checkpoints, legacy checkpoint mirror, and task-safe file inventory |
 | `.ctx/records.jsonl` | Timestamped evidence/decisions/failures |
 | `.ctx/lanes.json` | Optional experiment notes/history |
 | `.ctx/HANDOFF.md` | Generated compact resume view |
@@ -146,6 +146,32 @@ improves model task-completion rate.
 The deterministic [hypothesis-pressure benchmark](benchmarks/hypothesis_pressure.py)
 measures this behavior at 0, 10, 100, 1,000 and 5,000 seeded guesses,
 including previously rejected entries. It is not a real-model test.
+
+## Security and data-integrity hardening (3.4.1)
+
+- Managed metadata rejects symlinks, hardlinks and non-regular file types; this
+  prevents straightforward reads/writes beyond the metadata tree and FIFO hangs.
+  Snapshot task-card collection includes only `MISSION.md` and `SCOPE.md`.
+- Task `search` is scoped to the **active task** by default. Use
+  `contextforge search 'term' --all-tasks` for intentional cross-task queries
+  or `--task T-ID` for one other task. Query-specific context does not add
+  records that fail its relevance filter. For an explicit hypothesis history
+  query, tentative/rejected local hypotheses remain retrievable.
+- Active-task `scan` preserves other tasks' inventory entries and prunes only
+  deleted paths exclusive to the scanned scope, when the scan is complete.
+  Shared paths may require rescanning another task to establish deletion.
+- Task checkpoints are stale only when **relevant** records have changed.
+  Unrelated notes from another task no longer invalidate the checkpoint.
+- Global reasoning `approve` now requires an interactive terminal where the
+  operator reviews the exact lesson text and types its ID. This blocks normal
+  unattended subprocess approval but **does not prove a human** is operating
+  the terminal. An agent controlling a PTY or local files can still impersonate
+  an operator; do not treat a status flag as independently authenticated review.
+  The global store stays optional, not a safety authorization mechanism.
+- These are offline implementation protections. They do not demonstrate that
+  real language models complete tasks more accurately. Native Codex
+  compaction, hidden tool behavior and Plus usage limits still require real
+  agent evaluation.
 
 ## Important limits
 
