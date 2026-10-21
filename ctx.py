@@ -1232,7 +1232,7 @@ REPLACE_ME (scope, rules, timing, automation, operating environment)
 REPLACE_ME
 
 ## Unknowns and rival explanations
-REPLACE_ME (at least two distinct mechanisms; do not invent certainty)
+REPLACE_ME (only material uncertainties; do not invent hypotheses to fill a quota)
 
 ## Known anti-agent decoys / suspicious premises (not established facts)
 REPLACE_ME
