@@ -120,6 +120,18 @@ recovery, stale/contradictory evidence, irrelevant-context ratio, truncated
 hot context, log-growth and retrieval latency. A failure on any of these
 is a valid negative result for the context layer.
 
+**Baseline contamination risk:** If your regular Codex account already has
+ContextForge installed as a global skill, the "plain" arm might still load it.
+Review each trace and the `contextforge_cli_events_total` field before
+interpreting performance. A properly controlled run must isolate skill
+discovery/config without changing model safety settings, account authentication,
+or tool permissions. A contaminated baseline is **not** a valid no-skill test.
+
+**Task-coverage risk:** The included coding fixture is deliberately narrow
+(transient diagnostic plus small code patch), not a validated substitute for a
+multi-hour authorized bug bounty or real enterprise codebase. Add licensed,
+sanitized, externally graded tasks of different lengths before generalizing.
+
 **Comparison:** randomize arm order, pair trial seeds, aim for 10+ seeds per
 model when quota permits, include multiple model families, report both gains
 and regressions, and show confidence intervals rather than cherry-picked examples.
