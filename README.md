@@ -94,6 +94,7 @@ See `.agents/skills/contextforge/references/workflow.md` for more command syntax
 - Hook support varies by Codex version/frontend. Check that lifecycle callbacks actually fire.
 - CLI project reads/writes are serialized via a project lock; global reasoning mutations have a separate lock. Direct Python API calls that bypass the CLI are not guaranteed transactional.\n- `--proof` remains an **attested pointer**, not independent validation. Use optional `--proof-file` to capture an SHA256 digest of a local artifact; `contextforge check` flags later changes. File integrity does not prove an exploit claim.\n- Project memory files use private permissions on initialization/upgrade; check ownership on shared machines.
 - A compact handoff is an index into source evidence, **not a substitute for the original files**.
+- Compaction archives now support up to **64 MB of evidence records** per snapshot (8 MB for other individual state files) and retain the latest eight snapshots. Larger ledgers must be archived explicitly; the unbounded JSONL lookup cost remains a known scaling issue. A successful snapshot contains the full current ledger within that limit.
 
 ContextForge makes context recovery reliable **to the extent that important discoveries have been persisted**. It cannot guarantee a CTF solve or detect every misleading lead.
 
