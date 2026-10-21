@@ -53,7 +53,7 @@ def main():
             "proof": "synthetic-test:repro", "path": None,
             "tags": [], "links": [], "supersedes": None
         })
-        with contextlib.redirect_stdout(nowhere):
+        with open(os.devnull, "w") as checkpoint_output, contextlib.redirect_stdout(checkpoint_output):
             ctx.checkpoint(Args(root=str(root), task=None,
                                 summary="Resume from UNIQUE-RAVEN-ORACLE",
                                 next="Inspect raven observation", blocker=None,
