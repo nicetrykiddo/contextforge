@@ -1,4 +1,4 @@
-# ContextForge 3.3
+# ContextForge 3.3.1
 
 **Long-session project memory for Codex. Not a model guardrail, policy override, or agent controller.**
 
