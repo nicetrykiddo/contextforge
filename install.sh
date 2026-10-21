@@ -38,6 +38,7 @@ install -m 0644 "$here/contextforge_reasoning.py" "$HOME/.local/bin/contextforge
 install -m 0644 "$here/.agents/skills/contextforge/SKILL.md" "$HOME/.agents/skills/contextforge/SKILL.md"
 install -m 0644 "$here/.agents/skills/contextforge/references/workflow.md" "$HOME/.agents/skills/contextforge/references/workflow.md"
 install -m 0644 "$here/.agents/skills/contextforge/references/field-lessons.md" "$HOME/.agents/skills/contextforge/references/field-lessons.md"
+install -m 0644 "$here/.agents/skills/contextforge/references/decision-quality.md" "$HOME/.agents/skills/contextforge/references/decision-quality.md"
 cli="$HOME/.local/bin/contextforge"
 if [[ -n "$project" ]]; then
   mkdir -p "$project"
