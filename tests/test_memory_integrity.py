@@ -129,7 +129,7 @@ class MemoryIntegrityTests(unittest.TestCase):
 
     def test_compaction_does_not_follow_symlinked_task_directory(self):
         self.cmd('init')
-        self.task('First', 'First scope')
+        a = self.task('First', 'First scope')
         b = self.task('Second', 'Second scope')
         target = self.project / '.ctx/tasks' / b
         import shutil
@@ -138,6 +138,9 @@ class MemoryIntegrityTests(unittest.TestCase):
         outside.mkdir()
         (outside / 'MISSION.md').write_text('DO NOT ARCHIVE EXTERNAL SECRET')
         target.symlink_to(outside, target_is_directory=True)
+        # New tasks become active; test a legitimate snapshot of A while B
+        # contains a malicious link that should not be archived.
+        self.cmd('task', 'focus', a)
         self.cmd('snapshot')
         archive = sorted((self.project / '.ctx/compactions').glob('*.zip'))[-1]
         with zipfile.ZipFile(archive) as z:

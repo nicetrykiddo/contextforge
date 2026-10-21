@@ -78,13 +78,15 @@ PHASES = [
 ]
 
 
-def codex_invocation(arm, model, phase):
+def codex_invocation(arm, model, phase, thread_id=None):
     cmd = ["codex", "exec", "--json", "--sandbox", "workspace-write",
            "--skip-git-repo-check"]
     if model:
         cmd += ["--model", model]
     if "resume" in arm and phase:
-        cmd += ["resume", "--last", PHASES[phase]]
+        if not thread_id:
+            raise ValueError("Cannot resume a trial without its captured Codex thread ID")
+        cmd += ["resume", thread_id, PHASES[phase]]
     else:
         cmd += [PHASES[phase]]
     return cmd
@@ -147,17 +149,31 @@ def run_trial(outdir, arm, model, seed, timeout, stress_kb, keep_workspace=False
         executable.chmod(0o700)
     env["PATH"] = str(bin_dir) + os.pathsep + env.get("PATH", "")
     phases = []
+    thread_id = None
     for index in range(3):
         if index == 1:
             (workspace / "ephemeral_probe.py").unlink(missing_ok=True)
             shutil.rmtree(workspace / "__pycache__", ignore_errors=True)
-        command = codex_invocation(arm, model, index)
+        if "resume" in arm and index and not thread_id:
+            phases.append({"phase": index+1, "error": "NO_THREAD_ID",
+                           "reason": "Phase 1 emitted no trustworthy thread.started ID"})
+            break
+        command = codex_invocation(arm, model, index, thread_id=thread_id)
         start = time.monotonic()
         try:
             p = subprocess.run(command, cwd=workspace, env=env, text=True,
                                capture_output=True, timeout=timeout)
             duration = round(time.monotonic() - start, 2)
             events = read_events(p.stdout)
+            seen = [e.get("thread_id") for e in events
+                    if e.get("type") == "thread.started" and e.get("thread_id")]
+            if index == 0 and seen:
+                thread_id = seen[0]
+            if "resume" in arm and index and seen and seen[0] != thread_id:
+                phases.append({"phase": index+1, "error": "WRONG_SESSION_RESUMED",
+                               "expected_thread_id": thread_id,
+                               "observed_thread_id": seen[0]})
+                break
             usage, compactions = summarize_events(events)
             command_text = [
                 str((event.get("item") or {}).get("command", ""))
@@ -194,6 +210,7 @@ def run_trial(outdir, arm, model, seed, timeout, stress_kb, keep_workspace=False
     ok, grader_error = verify(workspace, truth)
     report = {
         "arm": arm, "model": model or "Codex configured default", "seed": seed,
+        "thread_id": thread_id if "resume" in arm else None,
         "phases_completed": len(phases),
         "all_phases_succeeded": len(phases) == 3 and all(
             x.get("exit_code") == 0 for x in phases),

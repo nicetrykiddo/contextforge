@@ -66,8 +66,8 @@ silently excluded.
 | --- | --- | --- |
 | `cold-plain` | New Codex thread every phase | No ContextForge |
 | `cold-forge` | New Codex thread every phase | Project AGENTS.md, skill, ContextForge CLI |
-| `resume-plain` | Native `codex exec resume --last` | No ContextForge |
-| `resume-forge` | Native `codex exec resume --last` | ContextForge |
+| `resume-plain` | Native `codex exec resume <captured-thread-id>` | No ContextForge |
+| `resume-forge` | Native `codex exec resume <captured-thread-id>` | ContextForge |
 
 Each trial uses an independent workspace and a synthetic offline Python task.
 At phase 1, the agent must run a **transient diagnostic** defining an algorithm.
@@ -77,6 +77,8 @@ hidden grader verifies nine representative inputs using parameters never given
 to the agent by the phase-3 prompt. All arms can write normal notes; baseline
 is **not** forbidden from recording discoveries. ContextForge may also record
 evidence. This is a test of **durable state**, not exploit generation.
+
+For native resume arms, the runner captures the phase-1 `thread.started.thread_id` and resumes **that exact ID**. It fails closed if the ID is missing or changes; the ambient `--last` thread is never used, because other concurrent Codex work could contaminate paired trials.
 
 Raw per-turn Codex JSON events are saved locally in `.bench-results/`; report
 contains exit status, wall time, input/cached/output/reasoning token counters when
