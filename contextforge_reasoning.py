@@ -177,11 +177,11 @@ def review_digest(item):
 def confirm_review(args):
     """Deliberate local operator step, never proof of human identity."""
     import sys
-    if not sys.stdin.isatty():
-        fail('Approving global lessons requires interactive review in a terminal')
     item = get(read_store(), args.id)
     if item['status'] != 'proposed':
         fail('Only proposed lessons can be approved')
+    if not sys.stdin.isatty():
+        fail('Approving global lessons requires interactive review in a terminal')
     print(f'Principle: {item["principle"]}')
     print(f'When: {item["when"]}')
     print(f'Response: {item["response"]}')
