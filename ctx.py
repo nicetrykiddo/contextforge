@@ -288,7 +288,7 @@ def upgrade(args):
     root = root_from(args)
     state = load(root)
     ctx = paths(root)[0]
-    card = ctx / 'MISSION.md'
+    card = ctx_member(root, 'MISSION.md')
     if not card.exists():
         card.write_text(MISSION_TEMPLATE, encoding='utf-8')
     changed = 'checkpoints' not in state
@@ -302,7 +302,7 @@ def upgrade(args):
     if len(tasks) > 1:
         for tid in tasks:
             for name, template in (('MISSION.md', MISSION_TEMPLATE), ('SCOPE.md', SCOPE_TEMPLATE)):
-                card = ctx / 'tasks' / tid / name
+                card = ctx_member(root, 'tasks', tid, name)
                 if not card.exists():
                     card.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
                     card.write_text(template, encoding='utf-8')
@@ -322,23 +322,23 @@ def task_add(args):
         ctx = paths(root)[0]
         for old in state['tasks']:
             for name, template in (('MISSION.md', MISSION_TEMPLATE), ('SCOPE.md', SCOPE_TEMPLATE)):
-                card = ctx / 'tasks' / old / name
+                card = ctx_member(root, 'tasks', old, name)
                 if not card.exists():
                     card.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-                    source = ctx / name
+                    source = ctx_member(root, name)
                     if len(state['tasks']) == 1 and source.is_file():
                         import shutil
                         shutil.copy2(source, card)
                     else:
                         card.write_text(template, encoding='utf-8')
         for name, template in (('MISSION.md', MISSION_TEMPLATE), ('SCOPE.md', SCOPE_TEMPLATE)):
-            card = ctx / 'tasks' / tid / name
+            card = ctx_member(root, 'tasks', tid, name)
             card.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
             card.write_text(template, encoding='utf-8')
     state['tasks'][tid] = {'title': args.title, 'scope': scopes, 'created': now(),
                            'goal': args.goal or '', 'status': 'active'}
-    if not state['active_task']:
-        state['active_task'] = tid
+    # Creating a task changes the default target of subsequent writes.
+    state['active_task'] = tid
     store(root, state)
     secure_ctx(root)
     print(f'{tid} {args.title} [scope: {", ".join(scopes)}]')
@@ -426,8 +426,10 @@ def scan(args):
     created = sorted(set(inventory) - set(old))
     deleted = sorted(set(old) - set(inventory)) if not args.task else []
     modified = sorted(k for k in inventory.keys() & old.keys() if inventory[k] != old[k])
-    if args.task:
-        # Scoped scans do not imply disappearance of files outside that task.
+    if task or args.task:
+        # Default scans are task-scoped; only an explicit global scan may
+        # replace the entire inventory and infer unrelated deletions.
+        deleted = []
         state['inventory'].update(inventory)
     else:
         state['inventory'] = inventory
@@ -523,12 +525,13 @@ def checkpoint(args):
     root = root_from(args)
     state = load(root)
     task_id, _ = selection(state, args.task)
+    relevant = [r for r in records(root) if r.get('task') in (task_id, None)]
     cp = {'at': now(), 'task': task_id, 'summary': args.summary,
           'next': args.next, 'blocker': args.blocker or '',
           'verified_by': args.verified_by or '',
           'why_next': (getattr(args, 'why_next', None) or '').strip(),
           'pivot_if': (getattr(args, 'pivot_if', None) or '').strip(),
-          'last_record': (records(root)[-1]['id'] if records(root) else None)}
+          'last_record': (relevant[-1]['id'] if relevant else None)}
     state.setdefault('checkpoints', {})[task_id or '__project__'] = cp
     state['checkpoint'] = cp  # legacy mirror, not used across tasks
     store(root, state)
@@ -756,7 +759,8 @@ def compaction_snapshot(root, *, event='manual', budget=2200, session=''):
                 '<!-- REGENERATED from durable records; not the full chat. -->\n' + handoff_text)
     cp = task_checkpoint(state, state.get('active_task'))
     rs = records(root)
-    stale = not cp or (bool(rs) and cp.get('last_record') != rs[-1]['id'])
+    relevant = [r for r in rs if r.get('task') in (state.get('active_task'), None)]
+    stale = not cp or cp.get('last_record') != (relevant[-1]['id'] if relevant else None)
     snap = ctx_member(root, 'compactions')
     snap.mkdir(exist_ok=True, mode=0o700)
     sid = hashlib.sha256(session.encode()).hexdigest()[:8] if session else 'manual'
