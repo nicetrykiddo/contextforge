@@ -16,6 +16,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -132,8 +133,10 @@ def verify(directory, formula):
         return False, str(exc)
 
 
-def run_trial(outdir, arm, model, seed, timeout, stress_kb):
-    workspace = outdir / (f"{arm}-seed{seed}")
+def run_trial(outdir, arm, model, seed, timeout, stress_kb, keep_workspace=False):
+    # Independent workspace outside results and other trial fixtures. In particular,
+    # do not let an agent browse previous arms' data through the parent directory.
+    workspace = Path(tempfile.mkdtemp(prefix=f"cf-model-{arm}-seed{seed}-"))
     truth = fixture(workspace, seed, forge=("forge" in arm), stress_kb=stress_kb)
     env = os.environ.copy()
     bin_dir = outdir / "bin"
@@ -178,7 +181,7 @@ def run_trial(outdir, arm, model, seed, timeout, stress_kb):
             phases.append({"phase": index+1, "error": "TIMEOUT", "timeout_seconds": timeout})
             break
     ok, grader_error = verify(workspace, truth)
-    return {
+    report = {
         "arm": arm, "model": model or "Codex configured default", "seed": seed,
         "phases_completed": len(phases),
         "all_phases_succeeded": len(phases) == 3 and all(
@@ -191,8 +194,11 @@ def run_trial(outdir, arm, model, seed, timeout, stress_kb):
                                      "output_tokens", "reasoning_output_tokens")},
         "total_wall_seconds": round(sum(x.get("wall_seconds", 0) for x in phases), 2),
         "phases": phases,
-        "workspace": str(workspace)
+        "workspace": str(workspace) if keep_workspace else "(removed after trial)"
     }
+    if not keep_workspace:
+        shutil.rmtree(workspace)
+    return report
 
 
 def main():
@@ -204,6 +210,8 @@ def main():
     ap.add_argument("--stress-kb", type=int, default=0, help="Extra irrelevant data: expensive, NOT proof of native compaction")
     ap.add_argument("--output-dir", default=".bench-results", help="PRIVATE local folder for traces and results")
     ap.add_argument("--execute", action="store_true", help="Required: uses your Codex/Plus quota")
+    ap.add_argument("--keep-workspaces", action="store_true",
+                    help="Retain synthetic agent workspaces under /tmp for debugging")
     args = ap.parse_args()
     arms = args.arms.split(",")
     seeds = [int(v) for v in args.seeds.split(",")]
@@ -228,7 +236,8 @@ def main():
     order = [(arm, seed) for seed in seeds for arm in arms]
     random.Random(73291).shuffle(order)
     for arm, seed in order:
-        result = run_trial(outdir, arm, args.model, seed, args.timeout, args.stress_kb)
+        result = run_trial(outdir, arm, args.model, seed, args.timeout,
+                           args.stress_kb, keep_workspace=args.keep_workspaces)
         results.append(result)
         print(f'{arm} seed={seed} passed={result["hidden_grader_pass"]} '
               f'usage={result["token_totals"]["input_tokens"]} input tokens', flush=True)
