@@ -14,6 +14,19 @@ The CLI loads the hot layer **before** optional history, including when the toke
 
 **ContextForge does not alter LLM safety settings, system instructions, permissions, or tool policies.** It does not decide whether the agent may perform a task. Existing requirements and program rules remain in force. Experiment-lane commands and anti-loop diagnostics are optional recordkeeping, not a compulsory solving protocol.
 
+## Evidence and performance benchmarks
+
+- [Benchmark protocol](BENCHMARKS.md): four-arm real Codex experiments,
+  including matched cold restarts and native session resumes, hidden acceptance
+  tests, JSONL token telemetry, and strict definitions of what counts as compaction.
+- [Measured offline results](benchmarks/RESULTS.md): synthetic memory recovery
+  and CLI latency on Python 3.10/3.12, **not LLM performance**.
+- [Opt-in real-model runner](benchmarks/live_codex.py): intentionally defaults
+  to a zero-cost dry run. No real-model results have been produced in this repo.
+
+**Do not claim the skill increases model task-success rates until actual paired
+model experiments show that improvement over the unmodified Codex baseline.**
+
 ## Install once for a project
 
 Review the public installer before execution:
