@@ -33,7 +33,7 @@ class GlobalReasoningTests(unittest.TestCase):
                                            stdout=subprocess.PIPE,
                                            stderr=subprocess.PIPE)
                 os.close(slave)
-                os.write(master, (args[2] + '\\n').encode())
+                os.write(master, (args[2] + '\n').encode())
                 stdout, stderr = process.communicate(timeout=15)
                 result_code = process.returncode
             finally:
