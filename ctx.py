@@ -336,7 +336,9 @@ def capture_brief(args):
     else:
         atomic_text(destination, text)
     # The full source remains immutable and separate from compact agent notes.
-    key = args.task or state.get('active_task') or '__project__'
+    # A single broad user request normally spans all subtasks.
+    # Only an explicit --task scopes the captured request to one task.
+    key = args.task or '__project__'
     entry = {'path': str(destination.relative_to(root)),
              'sha256': digest, 'bytes': len(payload)}
     if args.amend:
@@ -1550,7 +1552,7 @@ def cli():
     x.add_argument('--file', help='Read existing user brief from a UTF-8 file')
     x.add_argument('--stdin', action='store_true', help='Read original request from standard input')
     x.add_argument('--amend', action='store_true', help='Append an additional user instruction without overwriting the original')
-    x.add_argument('--task', help='Bind source to task ID (default active task/project)')
+    x.add_argument('--task', help='Bind only to this task; default is project-wide')
     x.set_defaults(func=capture_brief)
     x = sp.add_parser('upgrade', help='Add missing v2 mission card without overwriting existing project state')
     x.set_defaults(func=upgrade)
