@@ -37,7 +37,6 @@ install -m 0755 "$here/ctx.py" "$HOME/.local/bin/contextforge"
 install -m 0644 "$here/contextforge_reasoning.py" "$HOME/.local/bin/contextforge_reasoning.py"
 install -m 0644 "$here/.agents/skills/contextforge/SKILL.md" "$HOME/.agents/skills/contextforge/SKILL.md"
 install -m 0644 "$here/.agents/skills/contextforge/references/workflow.md" "$HOME/.agents/skills/contextforge/references/workflow.md"
-install -m 0644 "$here/.agents/skills/contextforge/references/field-lessons.md" "$HOME/.agents/skills/contextforge/references/field-lessons.md"
 install -m 0644 "$here/.agents/skills/contextforge/references/decision-quality.md" "$HOME/.agents/skills/contextforge/references/decision-quality.md"
 cli="$HOME/.local/bin/contextforge"
 if [[ -n "$project" ]]; then
@@ -51,7 +50,7 @@ fi
 if ((with_hooks)); then "$cli" hooks install; fi
 printf 'ContextForge installed: %s\nCodex skill: %s\n' "$cli" "$HOME/.agents/skills/contextforge/SKILL.md"
 if [[ -n "$project" ]]; then
-  printf 'Project: %s\nNext: fill .ctx/MISSION.md and .ctx/SCOPE.md using original sources before testing.\n' "$project"
+  printf 'Project: %s\nLong task: have Codex preserve the original prompt with contextforge brief --stdin. No handwritten mission required.\n' "$project"
 fi
 printf 'Restart Codex to discover the skill. Review hooks.json changes before enabling hooks.\n'
 
