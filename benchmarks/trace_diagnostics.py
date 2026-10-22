@@ -15,6 +15,7 @@ import re
 import sys
 
 CTX = re.compile(r'(?<![\w-])(?:contextforge|ctx\.py)(?![\w-])', re.I)
+PUBLIC_LABEL = re.compile(r'[a-zA-Z0-9_.+-]{1,64}\Z')
 TOKEN_KEYS = ('input_tokens', 'cached_input_tokens', 'output_tokens', 'reasoning_output_tokens')
 
 
@@ -47,9 +48,9 @@ def analyze(path: Path) -> dict:
             if kind in ('thread.started', 'turn.completed', 'item.started', 'item.completed'):
                 schemas.add('codex_exec_json')
             if kind == 'turn_context':
-                if isinstance(p.get('model'), str):
+                if isinstance(p.get('model'), str) and PUBLIC_LABEL.fullmatch(p['model']):
                     models.add(p['model'])
-                if isinstance(p.get('effort'), str):
+                if isinstance(p.get('effort'), str) and PUBLIC_LABEL.fullmatch(p['effort']):
                     efforts.add(p['effort'])
             if kind in ('compacted', 'thread.compacted', 'turn.compacted'):
                 count['explicit_compactions'] += 1
@@ -64,7 +65,7 @@ def analyze(path: Path) -> dict:
                             dest[key] += usage[key]
             raw, tool = None, None
             if kind == 'response_item' and p.get('type') == 'custom_tool_call':
-                tool = p.get('name') or 'unknown'
+                tool = str(p.get('name') or 'unknown')
                 raw = p.get('input') or ''
             elif kind == 'item.started' and isinstance(event.get('item'), dict):
                 item = event['item']
