@@ -28,7 +28,7 @@ except ImportError:
     fcntl = None
     import msvcrt
 
-VERSION = '3.4.1'
+VERSION = '3.4.2'
 STATE_DIR = '.ctx'
 KINDS = ('evidence', 'hypothesis', 'decision', 'failure', 'finding', 'note', 'checkpoint')
 STATUSES = ('verified', 'unverified', 'rejected', 'blocked', 'resolved')
@@ -475,7 +475,7 @@ def scan(args):
         state['inventory'].update(inventory)
     else:
         state['inventory'] = inventory
-    state['inventory_truncated'] = truncated
+    state['inventory_truncated'] = (bool(truncated or state.get('inventory_truncated')) if (task or args.task) else truncated)
     store(root, state)
     print(f'Indexed {len(inventory)} paths; +{len(created)} ~{len(modified)} -{len(deleted)}; truncated={truncated}')
     for label, values in [('+', created), ('~', modified), ('-', deleted)]:
