@@ -288,7 +288,7 @@ def init(args):
     atomic_json(path, state)
     event_file.touch(exist_ok=True)
     agent = root / 'AGENTS.md'
-    if agent.exists():
+    if agent.exists() or agent.is_symlink():
         print('Preserved existing AGENTS.md. Add the integration snippet from README manually.')
     else:
         agent.write_text(AGENT_TEMPLATE, encoding='utf-8')
