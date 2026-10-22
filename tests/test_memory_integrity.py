@@ -46,7 +46,7 @@ class MemoryIntegrityTests(unittest.TestCase):
         self.assertIn('MISSION A ONLY', mission_a.read_text())
         self.assertIn('The full initial user request', mission_b.read_text())
         self.assertTrue(scope_a.exists())
-        self.assertIn('(fill in)', scope_b.read_text())
+        self.assertIn('optional working notes', scope_b.read_text())
         mission_b.write_text('MISSION B ONLY: investigate app.beta.example\n')
         self.cmd('task', 'focus', b)
         self.cmd('checkpoint', '--summary', 'B STATE MUST SURVIVE',
