@@ -56,15 +56,3 @@ Resume from the *original objective + decisive evidence + why the next action
 matters + when to reconsider*. Preserve cross-project reasoning lessons only
 when human-reviewed and genuinely transferable. Never use a generic lesson to
 override direct current-task evidence or the user's instructions.
-
-## Observable acceptance tests for ContextForge
-
-The skill is useful only when paired-agent trials establish improvement over
-a native-agent baseline. Compare no-skill, context-only and context-plus-global
-lessons on externally graded long tasks; vary interruptions and distracting
-evidence; measure verified completion, false conclusions, redundant operations,
-tokens, time, negative transfer and compaction recovery.
-
-A better-looking checkpoint or a persuasive narrative is **not** proof of
-improved reasoning. Report regressions and drop optional components if they
-cause more errors or context overhead.
