@@ -59,15 +59,15 @@ class PracticalImpactTests(unittest.TestCase):
         self.assertNotIn("src/old.txt",state["inventory"],
             "A completed scan still advertises a file known to be deleted")
 
-    def test_closed_task_cannot_be_implicitly_reactivated(self):
+    def test_explicit_focus_reopens_closed_task_consistently(self):
         a=self.run_cli("task","add","Finished A").stdout.split()[0]
         self.run_cli("task","close",a)
-        r=self.run_cli("task","focus",a,success=False)
-        self.assertNotEqual(r.returncode,0,
-            "Task focus silently makes a closed task active without reopening status")
+        self.assertIsNone(json.loads((self.project/".ctx/state.json").read_text())["active_task"])
+        self.run_cli("task","focus",a)
         state=json.loads((self.project/".ctx/state.json").read_text())
-        self.assertEqual(state["tasks"][a]["status"],"closed")
-        self.assertIsNone(state["active_task"])
+        self.assertEqual(state["active_task"],a)
+        self.assertEqual(state["tasks"][a]["status"],"active")
+
 
 if __name__=="__main__":
     unittest.main()
