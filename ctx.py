@@ -697,7 +697,7 @@ def mission_summary(root, *, max_chars=2300, state=None, task_id=None):
                 summary.append(f'- {len(changes) - 5} earlier amendments in state.json (not listed here)')
         summary.append('Read the FULL original and later amendments; this pointer is not a replacement.')
         return summary
-    if 'REPLACE_ME' in raw:
+    if raw == MISSION_TEMPLATE or 'REPLACE_ME' in raw:
         return ['Original prompt was not locally captured. Use the full user message in this conversation;',
                 'for long work, preserve it once with contextforge brief --stdin or --file.',
                 'Do not invent a shortened objective or ask the user to rewrite their request.']
