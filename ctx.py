@@ -337,15 +337,20 @@ def capture_brief(args):
         atomic_text(destination, text)
     # The full source remains immutable and separate from compact agent notes.
     key = args.task or state.get('active_task') or '__project__'
-    state.setdefault('brief_sources', {})[key] = {
-        'path': str(destination.relative_to(root)),
-        'sha256': digest,
-        'bytes': len(payload),
-    }
+    entry = {'path': str(destination.relative_to(root)),
+             'sha256': digest, 'bytes': len(payload)}
+    if args.amend:
+        prior = state.setdefault('brief_amendments', {}).setdefault(key, [])
+        if not prior or prior[-1]['sha256'] != digest:
+            prior.append(entry)
+        print(f'Added request amendment for {key}: {entry["path"]}')
+    else:
+        original = state.setdefault('brief_sources', {}).get(key)
+        if original and original['sha256'] != digest:
+            die('Original brief already captured. Use --amend for later user changes.')
+        state['brief_sources'][key] = entry
+        print(f'Saved full original brief for {key}: {entry["path"]} ({len(payload)} bytes)')
     store(root, state)
-    print(f'Saved full original brief for {key}: {destination.relative_to(root)} '
-          f'({len(payload)} bytes, sha256={digest})')
-    print('Future changes should be stored separately; do not replace this source with a summary.')
 
 
 def upgrade(args):
@@ -681,7 +686,16 @@ def mission_summary(root, *, max_chars=2300, state=None, task_id=None):
         if 'REPLACE_ME' not in raw and raw.strip():
             summary.append(f'Additional working mission: {path.relative_to(root)}')
             summary.extend(brief(raw, min(400, max_chars)).splitlines())
-        summary.append('Follow the FULL original brief; this short pointer cannot reproduce all constraints.')
+        changes = ((state or {}).get('brief_amendments') or {}).get(task_id, [])
+        if not changes and task_id:
+            changes = ((state or {}).get('brief_amendments') or {}).get('__project__', [])
+        if changes:
+            summary.append(f'Additional user instructions: {len(changes)} saved amendment(s); read in order:')
+            for change in changes[-5:]:
+                summary.append(f'- {change["path"]} ({change["bytes"]} bytes)')
+            if len(changes) > 5:
+                summary.append(f'- {len(changes) - 5} earlier amendments in state.json (not listed here)')
+        summary.append('Read the FULL original and later amendments; this pointer is not a replacement.')
         return summary
     if 'REPLACE_ME' in raw:
         return ['Original prompt was not locally captured. Use the full user message in this conversation;',
@@ -909,7 +923,10 @@ def compaction_snapshot(root, *, event='manual', budget=2200, session=''):
                 # Include immutable original request sources in recovery snapshots.
                 total_brief_bytes = 0
                 seen = set()
-                for source in (state.get('brief_sources') or {}).values():
+                source_entries = list((state.get('brief_sources') or {}).values())
+                for changes in (state.get('brief_amendments') or {}).values():
+                    source_entries.extend(changes)
+                for source in source_entries:
                     rel = source.get('path', '')
                     if rel in seen:
                         continue
@@ -1471,8 +1488,12 @@ def audit(args):
     mission = task_mission(root, state, tid)
     scope = task_scope(root, state, tid)
     warnings = []
-    if not mission.is_file() or 'REPLACE_ME' in mission.read_text(encoding='utf-8'):
-        warnings.append('CRITICAL: Original mission is not anchored. Stop and preserve exact objective/constraints.')
+    original = (state.get('brief_sources') or {}).get(tid) or (state.get('brief_sources') or {}).get('__project__')
+    mission_unfilled = (not mission.is_file() or
+                        mission.read_text(encoding='utf-8') == MISSION_TEMPLATE or
+                        'REPLACE_ME' in mission.read_text(encoding='utf-8'))
+    if not original and mission_unfilled:
+        warnings.append('Original mission is not anchored in local files. Agent: use the original user prompt; capture it before compaction if needed. Do not ask the user to rewrite it.')
     if not scope.is_file() or '(fill in)' in scope.read_text(encoding='utf-8') or 'REPLACE_ME' in scope.read_text(encoding='utf-8'):
         warnings.append('CRITICAL: Authorization/scope not verified; do not test a live target.')
     if not state.get('active_task'):
@@ -1527,6 +1548,7 @@ def cli():
     x = sp.add_parser('brief', help='Preserve original long user request as a durable source')
     x.add_argument('--file', help='Read existing user brief from a UTF-8 file')
     x.add_argument('--stdin', action='store_true', help='Read original request from standard input')
+    x.add_argument('--amend', action='store_true', help='Append an additional user instruction without overwriting the original')
     x.add_argument('--task', help='Bind source to task ID (default active task/project)')
     x.set_defaults(func=capture_brief)
     x = sp.add_parser('upgrade', help='Add missing v2 mission card without overwriting existing project state')
