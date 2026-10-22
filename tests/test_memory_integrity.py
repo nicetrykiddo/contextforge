@@ -44,7 +44,7 @@ class MemoryIntegrityTests(unittest.TestCase):
         scope_a = self.project / '.ctx/tasks' / a / 'SCOPE.md'
         scope_b = self.project / '.ctx/tasks' / b / 'SCOPE.md'
         self.assertIn('MISSION A ONLY', mission_a.read_text())
-        self.assertIn('REPLACE_ME', mission_b.read_text())
+        self.assertIn('The full initial user request', mission_b.read_text())
         self.assertTrue(scope_a.exists())
         self.assertIn('(fill in)', scope_b.read_text())
         mission_b.write_text('MISSION B ONLY: investigate app.beta.example\n')
