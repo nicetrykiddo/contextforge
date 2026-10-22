@@ -43,6 +43,24 @@ class PracticalImpactTests(unittest.TestCase):
                              "init unexpectedly wrote outside project via dangling AGENTS.md symlink")
             self.assertTrue((project/"AGENTS.md").is_symlink())
 
+    def test_scanning_small_task_does_not_clear_other_truncation_warning(self):
+        (self.project/"a").mkdir()
+        (self.project/"b").mkdir()
+        for name in ("one", "two", "three"):
+            (self.project/"a"/(name+".txt")).write_text(name)
+        (self.project/"b"/"only.txt").write_text("b")
+        state_path=self.project/".ctx/state.json"
+        state=json.loads(state_path.read_text())
+        state["max_files"]=2
+        state_path.write_text(json.dumps(state))
+        self.run_cli("task","add","A","--scope","a")
+        self.run_cli("scan")
+        self.assertTrue(json.loads(state_path.read_text())["inventory_truncated"])
+        self.run_cli("task","add","B","--scope","b","--focus")
+        self.run_cli("scan")
+        self.assertTrue(json.loads(state_path.read_text())["inventory_truncated"],
+            "Project-wide incomplete index must not be declared complete after scanning B")
+
     def test_creating_backlog_task_does_not_discard_existing_active_context(self):
         # Real-world: agent adds a follow-up item while actively debugging A.
         a=self.run_cli("task","add","Fix production bug","--goal","Finish A").stdout.split()[0]
