@@ -475,7 +475,13 @@ def scan(args):
         state['inventory'].update(inventory)
     else:
         state['inventory'] = inventory
-    state['inventory_truncated'] = (bool(truncated or state.get('inventory_truncated')) if (task or args.task) else truncated)
+    if task or args.task:
+        by_task = state.setdefault('inventory_truncated_by_task', {})
+        by_task[args.task or state.get('active_task') or '__project__'] = truncated
+        state['inventory_truncated'] = any(by_task.values())
+    else:
+        state['inventory_truncated'] = truncated
+        state['inventory_truncated_by_task'] = {}
     store(root, state)
     print(f'Indexed {len(inventory)} paths; +{len(created)} ~{len(modified)} -{len(deleted)}; truncated={truncated}')
     for label, values in [('+', created), ('~', modified), ('-', deleted)]:
