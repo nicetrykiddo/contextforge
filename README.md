@@ -2,7 +2,7 @@
 
 **Long-session project memory and decision continuity for Codex. Not a model guardrail, policy override, or agent controller.**
 
-ContextForge keeps critical working context outside the conversation so CTF, bug bounty, investigation, software, and general projects can continue through compaction and new chats without repeating hours of discovery.
+ContextForge saves task goals, checkpoints and evidence outside the conversation for retrieval after compaction or fresh sessions. It is intended for long coding, investigation, CTF and authorized bug-bounty work. **Whether it reduces rework, tokens or mistakes versus native Codex has not yet been established by real-agent trials.**
 
 ## What stays in context
 
