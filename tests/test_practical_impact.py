@@ -26,6 +26,23 @@ class PracticalImpactTests(unittest.TestCase):
         if success: self.assertEqual(result.returncode,0,result.stderr+result.stdout)
         return result
 
+    def test_initializer_does_not_write_through_dangling_agents_symlink(self):
+        # A repository can legitimately contain a tracked AGENTS.md symlink.
+        # A dangling link is still an existing filesystem entry and must not
+        # create an arbitrary file outside the workspace on initialization.
+        with tempfile.TemporaryDirectory(prefix="cf-symlink-") as tmp:
+            base=Path(tmp)
+            project=base/"project"
+            project.mkdir()
+            outside=base/"external-new-file.txt"
+            (project/"AGENTS.md").symlink_to(outside)
+            p=subprocess.run([sys.executable,str(CLI),"--root",str(project),
+                              "init","--mode","general"],text=True,
+                              capture_output=True,env=self.env,timeout=20)
+            self.assertFalse(outside.exists(),
+                             "init unexpectedly wrote outside project via dangling AGENTS.md symlink")
+            self.assertTrue((project/"AGENTS.md").is_symlink())
+
     def test_creating_backlog_task_does_not_discard_existing_active_context(self):
         # Real-world: agent adds a follow-up item while actively debugging A.
         a=self.run_cli("task","add","Fix production bug","--goal","Finish A").stdout.split()[0]
