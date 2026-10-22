@@ -1460,17 +1460,14 @@ For long sessions or after compaction:
 8. Keep secrets out of memory files and `.ctx/` out of public Git.
 '''
 
-SCOPE_TEMPLATE = '''# Engagement / project boundaries
+SCOPE_TEMPLATE = '''# Project boundaries (optional working notes)
 
-- Project owner: (fill in)
-- Approved targets or data sources: (fill in; none implied by this template)
-- Prohibited tests/actions: (fill in)
-- Rate limits and automation policy: (fill in)
-- Private data handling: redact credentials/PII; store references, not contents
-- Evidence standard: include direct source path, output, or reproducible validation method
-- Stop conditions and contacts: (fill in)
+Use applicable requirements and constraints from the original user brief,
+existing project files and program rules. This file is an optional index,
+not a form for the user to complete and not proof of authorization.
 
-WARNING: This is a planning document, not proof of authorization.
+Security testing requires explicit authorization and applicable scope;
+never infer permission from a generated template.
 '''
 
 
@@ -1497,8 +1494,9 @@ def audit(args):
                         'REPLACE_ME' in mission.read_text(encoding='utf-8'))
     if not original and mission_unfilled:
         warnings.append('Original mission is not anchored in local files. Agent: use the original user prompt; capture it before compaction if needed. Do not ask the user to rewrite it.')
-    if not scope.is_file() or '(fill in)' in scope.read_text(encoding='utf-8') or 'REPLACE_ME' in scope.read_text(encoding='utf-8'):
-        warnings.append('CRITICAL: Authorization/scope not verified; do not test a live target.')
+    if state.get('mode') in ('bugbounty', 'ctf'):
+        if not scope.is_file() or scope.read_text(encoding='utf-8') == SCOPE_TEMPLATE:
+            warnings.append('Security scope has not been separately recorded. Follow the original user instructions and applicable program rules before target testing.')
     if not state.get('active_task'):
         warnings.append('No active task; set a measurable outcome before investigating.')
     if not fresh:
