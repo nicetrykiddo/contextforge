@@ -60,6 +60,14 @@ class PracticalImpactTests(unittest.TestCase):
         self.run_cli("scan")
         self.assertTrue(json.loads(state_path.read_text())["inventory_truncated"],
             "Project-wide incomplete index must not be declared complete after scanning B")
+        for name in ("two", "three"):
+            (self.project/"a"/(name+".txt")).unlink()
+        a_id=next(tid for tid,info in json.loads(state_path.read_text())["tasks"].items()
+                  if info["title"]=="A")
+        self.run_cli("task","focus",a_id)
+        self.run_cli("scan")
+        self.assertFalse(json.loads(state_path.read_text())["inventory_truncated"],
+            "Completing the previously truncated task must clear the warning")
 
     def test_creating_backlog_task_does_not_discard_existing_active_context(self):
         # Real-world: agent adds a follow-up item while actively debugging A.
