@@ -1,4 +1,4 @@
-# ContextForge 3.4.1
+# ContextForge 3.4.2
 
 **Long-session project memory and decision continuity for Codex. Not a model guardrail, policy override, or agent controller.**
 
@@ -65,7 +65,7 @@ not different model instructions or permission profiles.
 ## Efficient long-chat workflow
 
 1. Fill `.ctx/MISSION.md` with the real objective, acceptance test and **path/link to the full original source**. Fill `.ctx/SCOPE.md` with any existing engagement context.
-2. Use `contextforge task add 'Short goal' --goal 'Specific outcome'` to separate research threads. **The new task becomes active immediately**, so subsequent unqualified evidence belongs to it; use `task focus TASK_ID` to switch back. The first task uses the legacy `.ctx/MISSION.md`; adding a second task creates independent mission/scope cards. Fill the new task cards rather than reusing another task's assumptions.
+2. Use `contextforge task add 'Short goal' --goal 'Specific outcome'` to separate research threads. **Creating a task does not interrupt an already active task.** Use `contextforge task add 'New task' --focus` to create and immediately switch, or `contextforge task focus TASK_ID` to resume later. The first task becomes active automatically. The first task uses the legacy `.ctx/MISSION.md`; adding a second task creates independent mission/scope cards. Fill the new task cards rather than reusing another task's assumptions.
 3. At startup or after compaction, run **one** `contextforge context --budget 1200`. The latest checkpoint now comes before long pinned or historical lists.
 4. On a consequential branch, preserve the **reason** for the next action and what would invalidate it. This prevents compaction from restoring a now-pointless plan:
    `contextforge checkpoint --summary 'Verified observation' --next 'Test alternate mechanism' --why-next 'Distinguishes two explanations' --pivot-if 'Negative control behaves identically'`
@@ -146,6 +146,36 @@ improves model task-completion rate.
 The deterministic [hypothesis-pressure benchmark](benchmarks/hypothesis_pressure.py)
 measures this behavior at 0, 10, 100, 1,000 and 5,000 seeded guesses,
 including previously rejected entries. It is not a real-model test.
+
+## Practical impact review (3.4.2)
+
+The earlier adversarial audit proved several **local file-manipulation behaviors**,
+but it did not establish a plausible remote attacker, an exploitable privilege
+boundary, or real-world vulnerability severity. The managed `.ctx/` directory
+normally has owner-only permissions and is ignored by Git. A crafted symlink
+inside it generally requires the current user or another process already
+able to tamper with the user's project metadata. The file-integrity guards
+remain sensible defense in depth, not evidence of a remote compromise.
+
+A subsequent real-workflow review found that two prior fixes were harmful:
+automatically focusing every newly created task interrupted active work when
+adding backlog items; preserving every overlapping task's inventory entry
+kept deleted files indexed indefinitely. Both are corrected and backed by
+regression tests. Focusing a closed task now explicitly reopens it so its
+recorded status matches the active selection.
+
+Global-lesson approval requiring a TTY is **an interaction convention**, not
+human identity verification: a local agent controlling a terminal can satisfy
+it. Noninteractive approval is intentionally unavailable today and can
+inconvenience scripted administration; it should not be marketed as a security
+barrier. Cross-task search and zero-match query fallbacks may be intentional
+for some research; use explicit `--all-tasks` when broad search is wanted.
+The optional global reasoning layer still lacks held-out model evidence of
+positive transfer.
+
+See [the practical-impact review](docs/practical-impact-review.md) for
+preconditions, plausibility, possible regressions and deliberately unproven
+claims. No claim is made that v3.4.2 improves LLM completion rates.
 
 ## Security and data-integrity hardening (3.4.1)
 
