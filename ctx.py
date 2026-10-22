@@ -357,12 +357,12 @@ def task_add(args):
     # first task automatically; switching existing work requires --focus or
     # an explicit subsequent 'task focus' command.
     previous = state.get('active_task')
-    if not previous or args.focus:
+    if not previous or getattr(args, 'focus', False):
         state['active_task'] = tid
     store(root, state)
     secure_ctx(root)
     print(f'{tid} {args.title} [scope: {", ".join(scopes)}]')
-    if previous and not args.focus:
+    if previous and not getattr(args, 'focus', False):
         print(f'Active task unchanged: {previous}. To work on the new task, run: contextforge task focus {tid}')
 
 
