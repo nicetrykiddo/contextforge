@@ -677,7 +677,10 @@ def mission_summary(root, *, max_chars=2300, state=None, task_id=None):
     sources = ((state or {}).get('brief_sources') or {})
     source = sources.get(task_id) or sources.get('__project__')
     if source:
-        full = ctx_member(root, *Path(source['path']).parts)
+        rel = source.get('path', '')
+        if not re.fullmatch(r'\.ctx/briefs/[a-f0-9]{64}\.txt', rel):
+            return ['Original brief pointer is invalid; use the original user conversation.']
+        full = ctx_member(root, *Path(rel).parts[1:])
         if not full.is_file():
             return [f'Original brief MISSING: {source["path"]}. Recover from original user conversation.']
         data = full.read_bytes()
