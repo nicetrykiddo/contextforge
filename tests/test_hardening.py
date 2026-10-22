@@ -108,15 +108,15 @@ class HardeningTests(unittest.TestCase):
     def test_focused_task_search_does_not_cross_tasks(self):
         a = self.cli('task', 'add', 'A', '--goal', 'A').stdout.split()[0]
         self.cli('add', '--kind', 'note', '--title', 'TASK-A-CANARY-111')
-        b = self.cli('task', 'add', 'B', '--goal', 'B').stdout.split()[0]
+        b = self.cli('task', 'add', 'B', '--goal', 'B', '--focus').stdout.split()[0]
         self.assertNotEqual(a, b)
         self.assertNotIn('TASK-A-CANARY-111', self.cli('search', 'TASK-A-CANARY').stdout)
         self.assertIn('TASK-A-CANARY-111', self.cli('search', 'TASK-A-CANARY', '--all-tasks').stdout)
         self.assertIn('TASK-A-CANARY-111', self.cli('search', 'TASK-A-CANARY', '--task', a).stdout)
 
-    def test_task_add_focuses_new_task_to_avoid_record_misfile(self):
+    def test_explicit_task_add_focus_avoids_record_misfile(self):
         a = self.cli('task', 'add', 'A', '--goal', 'A').stdout.split()[0]
-        b = self.cli('task', 'add', 'B', '--goal', 'B').stdout.split()[0]
+        b = self.cli('task', 'add', 'B', '--goal', 'B', '--focus').stdout.split()[0]
         self.cli('add', '--kind', 'note', '--title', 'B-NOTE')
         record = json.loads((self.project / '.ctx/records.jsonl').read_text().splitlines()[-1])
         self.assertEqual(record['task'], b)
@@ -129,7 +129,7 @@ class HardeningTests(unittest.TestCase):
             (folder / (name+'-canary.txt')).write_text(name)
         a = self.cli('task', 'add', 'A', '--scope', 'a').stdout.split()[0]
         self.cli('scan')
-        b = self.cli('task', 'add', 'B', '--scope', 'b').stdout.split()[0]
+        b = self.cli('task', 'add', 'B', '--scope', 'b', '--focus').stdout.split()[0]
         self.cli('scan')
         state = json.loads((self.project / '.ctx/state.json').read_text())
         self.assertIn('a/a-canary.txt', state['inventory'])
@@ -139,7 +139,7 @@ class HardeningTests(unittest.TestCase):
         a = self.cli('task', 'add', 'A').stdout.split()[0]
         self.cli('add', '--kind', 'evidence', '--title', 'A evidence')
         self.cli('checkpoint', '--summary', 'A saved', '--next', 'A next')
-        self.cli('task', 'add', 'B')
+        self.cli('task', 'add', 'B', '--focus')
         self.cli('add', '--kind', 'note', '--title', 'B unrelated')
         self.cli('task', 'focus', a)
         output = self.cli('snapshot').stdout
@@ -163,7 +163,7 @@ class HardeningTests(unittest.TestCase):
             (folder / 'canary.txt').write_text(name)
         a = self.cli('task', 'add', 'A', '--scope', 'a').stdout.split()[0]
         self.cli('scan')
-        self.cli('task', 'add', 'B', '--scope', 'b')
+        self.cli('task', 'add', 'B', '--scope', 'b', '--focus')
         self.cli('scan')
         (self.project / 'b/canary.txt').unlink()
         self.cli('scan')
