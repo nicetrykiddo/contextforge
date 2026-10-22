@@ -123,7 +123,7 @@ class ContextForgeAntiLoopTests(ContextForgeMixin, unittest.TestCase):
         self.init()
         self.cmd('task', 'add', 'Analyze local puzzle')
         card = self.root / '.ctx' / 'MISSION.md'
-        self.assertIn('REPLACE_ME', card.read_text())
+        self.assertIn('The full initial user request', card.read_text())
         card.write_text('# Mission\nObjective: emit precisely one blue token.\nRule: no live automated calls.\n')
         output = self.cmd('context', '--budget', '1200').stdout
         self.assertIn('emit precisely one blue token', output)
