@@ -16,6 +16,11 @@ The CLI loads the hot layer **before** optional history, including when the toke
 
 ## Evidence and performance benchmarks
 
+- [Evidence policy](benchmarks/EVIDENCE_POLICY.md): what can be claimed publicly,
+  what requires real-agent paired trials, and why "flawless" is not a test result.
+- [Private trace analyzer](benchmarks/trace_diagnostics.py): aggregate tool-call,
+  compaction and token-use measurements from real Codex JSONL without emitting
+  command contents or stored output. Observational only, **not A/B evidence**.
 - [Benchmark protocol](BENCHMARKS.md): four-arm real Codex experiments,
   including matched cold restarts and native session resumes, hidden acceptance
   tests, JSONL token telemetry, and strict definitions of what counts as compaction.
