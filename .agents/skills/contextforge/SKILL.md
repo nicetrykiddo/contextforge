@@ -14,6 +14,14 @@ A small, optional working-memory aid, **not** a model policy, task controller, a
 3. Retrieve one relevant source or `contextforge context --query 'specific topic' --budget 900` only if needed. Do not automatically rescan the whole tree, regenerate the handoff, or rerun multiple audits.
 4. Continue the actual task, not ContextForge administration. If the saved next step no longer serves the user's win condition, revise it.
 
+## Task selection
+
+Creating a new task is not the same as switching the current one. With an active
+task, `contextforge task add 'Backlog item'` preserves that active context;
+use `contextforge task add 'Start now' --focus` or `contextforge task focus T-ID`
+to switch deliberately. Check the active task before writing important records
+in multi-task workspaces. Focusing a previously closed task explicitly reopens it.
+
 ## Before investing in an approach
 
 Use a **lightweight mental decision check**, not a mandatory checklist/tool call on every action:

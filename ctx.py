@@ -28,7 +28,7 @@ except ImportError:
     fcntl = None
     import msvcrt
 
-VERSION = '3.4.1'
+VERSION = '3.4.2'
 STATE_DIR = '.ctx'
 KINDS = ('evidence', 'hypothesis', 'decision', 'failure', 'finding', 'note', 'checkpoint')
 STATUSES = ('verified', 'unverified', 'rejected', 'blocked', 'resolved')
@@ -288,7 +288,7 @@ def init(args):
     atomic_json(path, state)
     event_file.touch(exist_ok=True)
     agent = root / 'AGENTS.md'
-    if agent.exists():
+    if agent.exists() or agent.is_symlink():
         print('Preserved existing AGENTS.md. Add the integration snippet from README manually.')
     else:
         agent.write_text(AGENT_TEMPLATE, encoding='utf-8')
@@ -353,11 +353,17 @@ def task_add(args):
             card.write_text(template, encoding='utf-8')
     state['tasks'][tid] = {'title': args.title, 'scope': scopes, 'created': now(),
                            'goal': args.goal or '', 'status': 'active'}
-    # Creating a task changes the default target of subsequent writes.
-    state['active_task'] = tid
+    # Backlog creation must not silently redirect ongoing work. Focus a
+    # first task automatically; switching existing work requires --focus or
+    # an explicit subsequent 'task focus' command.
+    previous = state.get('active_task')
+    if not previous or getattr(args, 'focus', False):
+        state['active_task'] = tid
     store(root, state)
     secure_ctx(root)
     print(f'{tid} {args.title} [scope: {", ".join(scopes)}]')
+    if previous and not getattr(args, 'focus', False):
+        print(f'Active task unchanged: {previous}. To work on the new task, run: contextforge task focus {tid}')
 
 
 def task_focus(args):
@@ -365,6 +371,10 @@ def task_focus(args):
     state = load(root)
     if args.id not in state['tasks']:
         die(f'Unknown task: {args.id}')
+    # Focusing a closed task is an intentional resume, never leave the
+    # same task simultaneously "active" and status="closed".
+    if state['tasks'][args.id]['status'] == 'closed':
+        state['tasks'][args.id]['status'] = 'active'
     state['active_task'] = args.id
     store(root, state)
     print(f'Focused {args.id}: {state["tasks"][args.id]["title"]}')
@@ -449,15 +459,15 @@ def scan(args):
         # evidence. An incomplete scan cannot establish file deletion.
         current_scopes = task['scope'] if task else state['scopes']
         tid = args.task or state.get('active_task')
-        other_scopes = [scope for other_id, other in state['tasks'].items()
-                        if other_id != tid for scope in other['scope']]
         def belongs(path, scopes):
             return any(scope == '.' or path == scope or
                        path.startswith(scope.rstrip('/') + '/') for scope in scopes)
         if not truncated:
+            # Inventory records physical path existence, not per-task
+            # ownership. If a completed scoped scan confirms a file is
+            # missing, it is also missing for overlapping task scopes.
             deleted = sorted(path for path in old if path not in inventory
-                             and belongs(path, current_scopes)
-                             and not belongs(path, other_scopes))
+                             and belongs(path, current_scopes))
             for path in deleted:
                 state['inventory'].pop(path, None)
         else:
@@ -465,7 +475,13 @@ def scan(args):
         state['inventory'].update(inventory)
     else:
         state['inventory'] = inventory
-    state['inventory_truncated'] = truncated
+    if task or args.task:
+        by_task = state.setdefault('inventory_truncated_by_task', {})
+        by_task[args.task or state.get('active_task') or '__project__'] = truncated
+        state['inventory_truncated'] = any(by_task.values())
+    else:
+        state['inventory_truncated'] = truncated
+        state['inventory_truncated_by_task'] = {}
     store(root, state)
     print(f'Indexed {len(inventory)} paths; +{len(created)} ~{len(modified)} -{len(deleted)}; truncated={truncated}')
     for label, values in [('+', created), ('~', modified), ('-', deleted)]:
@@ -1443,7 +1459,9 @@ def cli():
     x = sp.add_parser('task', help='Add/focus work items')
     sx = x.add_subparsers(dest='action', required=True)
     y = sx.add_parser('add')
-    y.add_argument('title'); y.add_argument('--scope'); y.add_argument('--goal'); y.set_defaults(func=task_add)
+    y.add_argument('title'); y.add_argument('--scope'); y.add_argument('--goal')
+    y.add_argument('--focus', action='store_true', help='Switch active work to the new task (otherwise preserve current focus)')
+    y.set_defaults(func=task_add)
     y = sx.add_parser('focus'); y.add_argument('id'); y.set_defaults(func=task_focus)
     y = sx.add_parser('close'); y.add_argument('id'); y.set_defaults(func=task_close)
     x = sp.add_parser('scan', help='Bounded project inventory (not entire filesystem)')
