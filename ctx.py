@@ -720,20 +720,22 @@ def context_text(root, state, task_id, query, budget):
     scope_path = task_scope(root, state, task_id).relative_to(root)
     if budget < 250:
         # At tiny budgets, resume position beats an incomplete mission excerpt.
+        source = (state.get('brief_sources') or {}).get(task_id) or (state.get('brief_sources') or {}).get('__project__')
         tiny = [f'# ContextForge {state["project"]}',
                 f'Task: {brief(task["title"], 48) if task else "unset"}',
-                f'Mission: {mission_path}',
+                f'Original: {source["path"]}' if source else f'Mission: {mission_path}',
                 f'State: {brief(cp.get("summary"), 65) if cp else "No checkpoint"}',
                 f'Next: {brief(cp.get("next"), 65) if cp else "Read mission"}']
         if cp and cp.get('pivot_if'):
             tiny.append(f'Reconsider if: {brief(cp["pivot_if"], 65)}')
         result = '\n'.join(tiny) + '\n'
         return result[:max(0, max_chars-len(warning))].rstrip() + warning
+    source = (state.get('brief_sources') or {}).get(task_id) or (state.get('brief_sources') or {}).get('__project__')
     core = [
         f'# ContextForge | {state["project"]} | {state["mode"]}',
         f'Active task: {task_id or "unset"} | {brief(task["title"], 140) if task else "no task"}',
         f'Goal: {brief(task.get("goal", ""), 140) if task else "unset"}',
-        f'Exact mission source: {mission_path}',
+        f'Exact original brief: {source["path"]}' if source else f'Mission: {mission_path}',
         f'Engagement context: {scope_path}',
         '## Latest checkpoint for this task',
     ]
@@ -904,6 +906,23 @@ def compaction_snapshot(root, *, event='manual', budget=2200, session=''):
                                 f'{name} exceeds snapshot limit ({max_size} bytes); '
                                 'archive old evidence records before retrying')
                         z.write(fp, arcname=name)
+                # Include immutable original request sources in recovery snapshots.
+                total_brief_bytes = 0
+                seen = set()
+                for source in (state.get('brief_sources') or {}).values():
+                    rel = source.get('path', '')
+                    if rel in seen:
+                        continue
+                    seen.add(rel)
+                    if not re.fullmatch(r'\.ctx/briefs/[a-f0-9]{64}\.txt', rel):
+                        raise ValueError('Unsafe original brief source path in state')
+                    fp = ctx_member(root, *Path(rel).parts[1:])
+                    if not fp.is_file() or hashlib.sha256(fp.read_bytes()).hexdigest() != source.get('sha256'):
+                        raise ValueError('Missing or modified original request; snapshot incomplete')
+                    total_brief_bytes += fp.stat().st_size
+                    if total_brief_bytes > 64_000_000:
+                        raise ValueError('Original briefs exceed snapshot limit')
+                    z.write(fp, arcname=rel[5:])
                 task_dir = ctx_member(root, 'tasks')
                 for task_card in sorted(task_dir.glob('*/*.md')):
                     # Only curated mission/scope cards belong in recovery
