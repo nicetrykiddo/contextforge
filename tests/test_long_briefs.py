@@ -47,18 +47,35 @@ class LongBriefTests(unittest.TestCase):
     def test_tasks_can_have_distinct_full_original_prompts(self):
         a = self.run_cmd('task', 'add', 'Project A').stdout.split()[0]
         first = 'A original requirement\n' * 2200 + 'A-tail'
-        self.run_cmd('brief', '--stdin', data=first)
+        self.run_cmd('brief', '--stdin', '--task', a, data=first)
         b = self.run_cmd('task', 'add', 'Project B', '--focus').stdout.split()[0]
         second = 'B distinct full request\n' * 2100 + 'B-tail'
         path = Path(self.tmp.name)/'source.txt'
         path.write_text(second)
-        self.run_cmd('brief', '--file', str(path))
+        self.run_cmd('brief', '--file', str(path), '--task', b)
         st = json.loads((self.root / '.ctx/state.json').read_text())
         self.assertNotEqual(st['brief_sources'][a]['path'], st['brief_sources'][b]['path'])
         self.assertEqual((self.root/st['brief_sources'][a]['path']).read_text(), first)
         self.assertEqual((self.root/st['brief_sources'][b]['path']).read_text(), second)
         self.run_cmd('task', 'focus', a)
         self.assertIn(st['brief_sources'][a]['path'], self.run_cmd('context', '--budget', '350').stdout)
+
+    def test_original_applies_to_subtasks_and_changes_do_not_overwrite(self):
+        original = 'Large request scope applies across multiple work streams\\n' * 200
+        self.run_cmd('brief', '--stdin', data=original)
+        a = self.run_cmd('task', 'add', 'A').stdout.split()[0]
+        b = self.run_cmd('task', 'add', 'B', '--focus').stdout.split()[0]
+        for tid in (a, b):
+            text = self.run_cmd('context', '--task', tid, '--budget', '800').stdout
+            self.assertIn('Verbatim original user brief: .ctx/briefs/', text)
+        bad = self.run_cmd('brief', '--stdin', data='Different new source', ok=False)
+        self.assertNotEqual(bad.returncode, 0)
+        self.run_cmd('brief', '--stdin', '--amend', data='Additional user requirement: support offline operation.')
+        st = json.loads((self.root/'.ctx/state.json').read_text())
+        self.assertEqual((self.root / st['brief_sources']['__project__']['path']).read_text(), original)
+        self.assertEqual(len(st['brief_amendments']['__project__']), 1)
+        text = self.run_cmd('context', '--budget', '900').stdout
+        self.assertIn('Additional user instructions', text)
 
     def test_detects_common_private_tokens_without_writing(self):
         bad = 'Do not store ' + 'sk-' + 'abcdefghijklmnopqrstuvwxyz123456789012345'
