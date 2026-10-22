@@ -59,6 +59,17 @@ class TraceDiagnosticTests(unittest.TestCase):
         self.assertEqual(report['explicit_compactions'], 0)
         self.assertNotIn('private-session-id-999', json.dumps(report))
 
+    def test_mcp_repeated_arguments_are_not_hidden_by_per_call_ids(self):
+        rows = [
+            {'type': 'item.started', 'item': {'id': 'first', 'type': 'mcp_tool_call',
+                'server': 'fixture', 'tool': 'lookup', 'arguments': {'target': 'safe'}}},
+            {'type': 'item.started', 'item': {'id': 'second', 'type': 'mcp_tool_call',
+                'server': 'fixture', 'tool': 'lookup', 'arguments': {'target': 'safe'}}},
+        ]
+        report = analyze(self.make_log(rows))
+        self.assertEqual(report['tool_calls'], 2)
+        self.assertEqual(report['exact_input_repeat_calls'], 1)
+
     def test_mixed_usage_is_not_combined_and_bad_line_counted(self):
         rows = [
             {'type': 'token_usage_record', 'payload': {'usage': {'input_tokens': 10}}},
