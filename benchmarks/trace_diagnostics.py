@@ -71,7 +71,14 @@ def analyze(path: Path) -> dict:
                 item = event['item']
                 if item.get('type') in ('command_execution', 'mcp_tool_call', 'web_search'):
                     tool = item['type']
-                    raw = item.get('command') or json.dumps(item, sort_keys=True)
+                    if tool == 'command_execution':
+                        raw = item.get('command') or ''
+                    else:
+                        # Transport-generated item IDs/status/timestamps must
+                        # not disguise repeated identical MCP/web inputs.
+                        raw = json.dumps({key: item.get(key) for key in
+                                          ('server', 'tool', 'arguments', 'query')
+                                          if key in item}, sort_keys=True)
             if tool is not None:
                 count['tool_calls'] += 1
                 raw = raw if isinstance(raw, str) else json.dumps(raw, sort_keys=True)
