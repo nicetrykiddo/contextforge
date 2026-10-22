@@ -28,7 +28,7 @@ except ImportError:
     fcntl = None
     import msvcrt
 
-VERSION = '3.4.2'
+VERSION = '3.5.0'
 STATE_DIR = '.ctx'
 KINDS = ('evidence', 'hypothesis', 'decision', 'failure', 'finding', 'note', 'checkpoint')
 STATUSES = ('verified', 'unverified', 'rejected', 'blocked', 'resolved')
