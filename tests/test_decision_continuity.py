@@ -91,6 +91,34 @@ class DecisionContinuityTests(unittest.TestCase):
         self.assertIn('repeat a premise', output)
         self.assertNotIn('must answer before trying', output)
 
+    def test_optional_review_distinguishes_proxy_evidence_before_scaling(self):
+        self.cli('init', '--mode', 'software')
+        self.cli('task', 'add', 'Repair database transaction rollback',
+                 '--goal', 'Preserve data after failed commit')
+        self.cli('add', '--kind', 'evidence', '--status', 'verified',
+                 '--title', 'Unit test measured the retry path',
+                 '--proof', 'local test result: retry reached expected branch')
+        self.cli('checkpoint', '--summary', 'A partial behavior was observed',
+                 '--next', 'Check transaction rollback under concurrent writes')
+        hot = self.cli('context', '--budget', '1000')
+        self.assertIn('Check transaction rollback', hot)
+        self.assertNotIn('small pilot, measured effect', hot)
+        review = self.cli('rethink', '--budget', '900')
+        self.assertIn('small pilot, measured effect', review)
+        self.assertIn('tested proxies from the full success criterion', review)
+        self.assertIn('A partial behavior was observed', review)
+        # The review is advisory; continued productive iteration is permitted.
+        self.cli('checkpoint', '--summary', 'Second fixture reproduces the race',
+                 '--next', 'Implement atomic rollback')
+        self.assertIn('Implement atomic rollback',
+                      self.cli('context', '--budget', '1000'))
+
+    def test_skill_does_not_assume_contextforge_was_executed(self):
+        instructions = SKILL.read_text()
+        self.assertIn('verify `contextforge` is available', instructions)
+        self.assertIn('do not claim that ContextForge commands', instructions)
+        self.assertIn('a proxy, partial result', instructions)
+
     def test_global_installer_copies_decision_quality_reference(self):
         repo = Path(__file__).resolve().parents[1]
         with tempfile.TemporaryDirectory() as home:
