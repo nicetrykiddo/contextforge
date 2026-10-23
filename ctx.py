@@ -1094,6 +1094,7 @@ def rethink(args):
     print('3. What do the controls actually disprove: one candidate, a mechanism, or the strategy?')
     print('4. Would the next test supply new information, or repeat a premise with a new label?')
     print('5. What evidence supports continuing deeply, and what would justify pivoting?')
+    print('6. For a costly follow-up, what small pilot, measured effect and stop condition justify scaling? Distinguish tested proxies from the full success criterion.')
 
 
 def search(args):
